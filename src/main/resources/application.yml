@@ -1,0 +1,72 @@
+spring:
+  application:
+    name: omra-platform
+
+  # PostgreSQL : définir DB_PASSWORD (et DB_USERNAME si besoin) selon votre installation.
+  # Ex. : set DB_PASSWORD=votre_mot_de_passe_postgres && mvn spring-boot:run
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:omra_db}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+
+  jpa:
+    # update = crée les tables manquantes et met à jour le schéma (dev). En prod, préférer validate + Flyway/Liquibase.
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        default_schema: public
+        format_sql: true
+        jdbc:
+          batch_size: 25
+    open-in-view: false
+
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
+# JWT
+jwt:
+  secret: ${JWT_SECRET:your-256-bit-secret-key-for-jwt-signing-must-be-long-enough}
+  access-token-validity: 900
+  refresh-token-validity: 86400
+
+# Storage (S3-compatible: AWS S3 or MinIO)
+storage:
+  type: minio
+  endpoint: ${STORAGE_ENDPOINT:http://localhost:9000}
+  access-key: ${STORAGE_ACCESS_KEY:minioadmin}
+  secret-key: ${STORAGE_SECRET_KEY:minioadmin}
+  bucket: ${STORAGE_BUCKET:omra-files}
+  region: ${STORAGE_REGION:us-east-1}
+
+# Default super admin (User - créé au premier démarrage si activé)
+app:
+  default-super-admin:
+    enabled: ${DEFAULT_SUPER_ADMIN_ENABLED:true}
+    email: ${DEFAULT_SUPER_ADMIN_EMAIL:superadmin@omra.local}
+    password: ${DEFAULT_SUPER_ADMIN_PASSWORD:SuperAdmin123!}
+  # Platform Admin (table admins) - can create agencies and activate/deactivate
+  default-admin:
+    enabled: ${DEFAULT_ADMIN_ENABLED:true}
+    username: ${DEFAULT_ADMIN_USERNAME:superadmin}
+    email: ${DEFAULT_ADMIN_EMAIL:superadmin@omra.local}
+    password: ${DEFAULT_ADMIN_PASSWORD:SuperAdmin123!}
+
+# API (default 8081 to avoid conflict if 8080 is in use; set PORT=8080 to use 8080)
+server:
+  port: ${PORT:8080}
+
+# Swagger
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operationsSorter: method

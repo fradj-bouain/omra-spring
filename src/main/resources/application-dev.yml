@@ -1,0 +1,10 @@
+# Local development: create/update DB schema automatically
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: update
+
+# Use local file storage if MinIO is not running
+storage:
+  type: local
+  local-path: ./uploads
