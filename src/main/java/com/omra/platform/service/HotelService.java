@@ -59,8 +59,12 @@ public class HotelService {
                 .name(dto.getName())
                 .city(dto.getCity())
                 .address(dto.getAddress())
+                .country(dto.getCountry())
                 .stars(dto.getStars())
+                .contactImportant(dto.getContactImportant())
                 .contactPhone(dto.getContactPhone())
+                .receptionPhone(dto.getReceptionPhone())
+                .email(dto.getEmail())
                 .build();
         hotel = hotelRepository.save(hotel);
         return toDto(hotel);
@@ -131,8 +135,12 @@ public class HotelService {
                 .name(e.getName())
                 .city(e.getCity())
                 .address(e.getAddress())
+                .country(e.getCountry())
                 .stars(e.getStars())
+                .contactImportant(e.getContactImportant())
                 .contactPhone(e.getContactPhone())
+                .receptionPhone(e.getReceptionPhone())
+                .email(e.getEmail())
                 .build();
     }
 }

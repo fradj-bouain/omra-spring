@@ -9,13 +9,11 @@ import java.time.Instant;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class BusDto {
+public class TaskTemplateDto {
 
     private Long id;
     private Long agencyId;
-    private String plate;
-    private Integer capacity;
-    private String driverName;
-    private String driverContact;
+    private String name;
+    private Integer durationMinutes;
     private Instant createdAt;
 }

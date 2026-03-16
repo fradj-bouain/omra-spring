@@ -3,16 +3,22 @@ package com.omra.platform.service;
 import com.omra.platform.dto.PageResponse;
 import com.omra.platform.dto.PilgrimDto;
 import com.omra.platform.dto.UmrahGroupDto;
+import com.omra.platform.entity.GroupCompanion;
 import com.omra.platform.entity.GroupPilgrim;
 import com.omra.platform.entity.Pilgrim;
 import com.omra.platform.entity.UmrahGroup;
+import com.omra.platform.entity.User;
+import com.omra.platform.entity.enums.UserRole;
 import com.omra.platform.exception.BadRequestException;
 import com.omra.platform.exception.ForbiddenException;
 import com.omra.platform.exception.ResourceNotFoundException;
 import com.omra.platform.repository.AgencyRepository;
+import com.omra.platform.repository.GroupCompanionRepository;
 import com.omra.platform.repository.GroupPilgrimRepository;
 import com.omra.platform.repository.PilgrimRepository;
 import com.omra.platform.repository.UmrahGroupRepository;
+import com.omra.platform.repository.UserRepository;
+import com.omra.platform.service.PlanningService;
 import com.omra.platform.util.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -30,8 +36,11 @@ public class UmrahGroupService {
 
     private final UmrahGroupRepository groupRepository;
     private final GroupPilgrimRepository groupPilgrimRepository;
+    private final GroupCompanionRepository groupCompanionRepository;
     private final PilgrimRepository pilgrimRepository;
+    private final UserRepository userRepository;
     private final AgencyRepository agencyRepository;
+    private final PlanningService planningService;
 
     private Long requireAgencyId() {
         Long agencyId = TenantContext.getAgencyId();
@@ -75,6 +84,9 @@ public class UmrahGroupService {
                 throw new ForbiddenException("Agency context required");
             }
         }
+        if (dto.getPlanningId() != null) {
+            planningService.findByIdAndAgency(dto.getPlanningId());
+        }
         UmrahGroup group = UmrahGroup.builder()
                 .agencyId(agencyId)
                 .name(dto.getName())
@@ -83,9 +95,11 @@ public class UmrahGroupService {
                 .returnDate(dto.getReturnDate())
                 .maxCapacity(dto.getMaxCapacity())
                 .price(dto.getPrice())
+                .planningId(dto.getPlanningId())
                 .status(dto.getStatus() != null ? dto.getStatus() : com.omra.platform.entity.enums.GroupStatus.OPEN)
                 .build();
         group = groupRepository.save(group);
+        saveCompanions(group.getId(), group.getAgencyId(), dto.getCompanionIds());
         return toDto(group);
     }
 
@@ -99,7 +113,14 @@ public class UmrahGroupService {
         if (dto.getMaxCapacity() != null) group.setMaxCapacity(dto.getMaxCapacity());
         if (dto.getPrice() != null) group.setPrice(dto.getPrice());
         if (dto.getStatus() != null) group.setStatus(dto.getStatus());
+        if (dto.getPlanningId() != null) {
+            planningService.findByIdAndAgency(dto.getPlanningId());
+            group.setPlanningId(dto.getPlanningId());
+        }
         group = groupRepository.save(group);
+        if (dto.getCompanionIds() != null) {
+            saveCompanions(group.getId(), group.getAgencyId(), dto.getCompanionIds());
+        }
         return toDto(group);
     }
 
@@ -165,7 +186,31 @@ public class UmrahGroupService {
                 .build();
     }
 
+    private void saveCompanions(Long groupId, Long agencyId, List<Long> companionIds) {
+        if (companionIds == null || companionIds.isEmpty()) {
+            groupCompanionRepository.deleteByGroupId(groupId);
+            return;
+        }
+        groupCompanionRepository.deleteByGroupId(groupId);
+        for (Long userId : companionIds) {
+            if (userId == null) continue;
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new ResourceNotFoundException("User", userId));
+            if (user.getDeletedAt() != null) throw new ResourceNotFoundException("User", userId);
+            if (!UserRole.PILGRIM_COMPANION.equals(user.getRole())) {
+                throw new BadRequestException("L'utilisateur " + user.getName() + " n'est pas accompagnateur (PILGRIM_COMPANION)");
+            }
+            if (!agencyId.equals(user.getAgencyId())) {
+                throw new BadRequestException("L'accompagnateur doit appartenir à la même agence que le groupe");
+            }
+            groupCompanionRepository.save(GroupCompanion.builder().groupId(groupId).userId(userId).build());
+        }
+    }
+
     private UmrahGroupDto toDto(UmrahGroup e) {
+        List<Long> companionIds = groupCompanionRepository.findByGroupIdOrderByIdAsc(e.getId()).stream()
+                .map(GroupCompanion::getUserId)
+                .collect(Collectors.toList());
         return UmrahGroupDto.builder()
                 .id(e.getId())
                 .agencyId(e.getAgencyId())
@@ -175,8 +220,10 @@ public class UmrahGroupService {
                 .returnDate(e.getReturnDate())
                 .maxCapacity(e.getMaxCapacity())
                 .price(e.getPrice())
+                .planningId(e.getPlanningId())
                 .status(e.getStatus())
                 .createdAt(e.getCreatedAt())
+                .companionIds(companionIds)
                 .build();
     }
 

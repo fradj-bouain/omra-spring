@@ -13,6 +13,10 @@ public class HotelDto {
     private String name;
     private String city;
     private String address;
+    private String country;
     private Integer stars;
+    private String contactImportant;
     private String contactPhone;
+    private String receptionPhone;
+    private String email;
 }

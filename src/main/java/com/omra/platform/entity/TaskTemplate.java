@@ -5,16 +5,20 @@ import lombok.*;
 
 import java.time.Instant;
 
+/**
+ * Type de tâche prédéfinie (ex: Tawaf, Sa'i) avec une durée.
+ * L'agence crée son catalogue d'activités ; les plannings sont composés de ces modèles.
+ */
 @Entity
-@Table(name = "buses", indexes = {
-    @Index(name = "idx_bus_agency_id", columnList = "agency_id")
+@Table(name = "task_templates", indexes = {
+    @Index(name = "idx_task_template_agency", columnList = "agency_id")
 })
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Bus {
+public class TaskTemplate {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -23,17 +27,12 @@ public class Bus {
     @Column(name = "agency_id", nullable = false)
     private Long agencyId;
 
-    @Column(nullable = false, length = 32)
-    private String plate;
+    @Column(nullable = false, length = 128)
+    private String name;
 
-    @Column(nullable = false)
-    private Integer capacity;
-
-    @Column(name = "driver_name", length = 128)
-    private String driverName;
-
-    @Column(name = "driver_contact", length = 64)
-    private String driverContact;
+    /** Durée en minutes (ex: 120 = 2h). */
+    @Column(name = "duration_minutes")
+    private Integer durationMinutes;
 
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
@@ -44,6 +43,5 @@ public class Bus {
     @PrePersist
     protected void onCreate() {
         if (createdAt == null) createdAt = Instant.now();
-        if (capacity == null) capacity = 50;
     }
 }

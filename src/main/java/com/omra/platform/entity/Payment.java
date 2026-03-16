@@ -9,6 +9,10 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 
+/**
+ * Paiement lié à un pèlerin et un groupe (obligatoires).
+ * En cas de statut PARTIAL : première date d'échéance + période + nombre d'échéances → génération des échéances (PaymentDue).
+ */
 @Entity
 @Table(name = "payments", indexes = {
     @Index(name = "idx_payment_agency_id", columnList = "agency_id"),
@@ -50,6 +54,15 @@ public class Payment {
 
     private LocalDate paymentDate;
     private String reference;
+
+    @Column(name = "first_due_date")
+    private LocalDate firstDueDate;
+
+    @Column(name = "due_period_days")
+    private Integer duePeriodDays;
+
+    @Column(name = "number_of_installments")
+    private Integer numberOfInstallments;
 
     @Column(nullable = false, updatable = false)
     private Instant createdAt;

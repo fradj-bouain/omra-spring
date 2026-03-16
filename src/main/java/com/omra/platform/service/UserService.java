@@ -30,14 +30,18 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
 
     @Transactional(readOnly = true)
-    public PageResponse<UserDto> getUsers(Pageable pageable) {
+    public PageResponse<UserDto> getUsers(Pageable pageable, UserRole roleFilter) {
         Long agencyId = TenantContext.getAgencyId();
         if (TenantContext.isSuperAdmin() && agencyId == null) {
-            Page<User> page = userRepository.findByAgencyIdIsNullAndDeletedAtIsNull(pageable);
+            Page<User> page = roleFilter != null
+                    ? userRepository.findByAgencyIdIsNullAndRoleAndDeletedAtIsNull(roleFilter, pageable)
+                    : userRepository.findByAgencyIdIsNullAndDeletedAtIsNull(pageable);
             return toPageResponse(page);
         }
         if (agencyId == null) throw new ForbiddenException("Agency context required");
-        Page<User> page = userRepository.findByAgencyIdAndDeletedAtIsNull(agencyId, pageable);
+        Page<User> page = roleFilter != null
+                ? userRepository.findByAgencyIdAndRoleAndDeletedAtIsNull(agencyId, roleFilter, pageable)
+                : userRepository.findByAgencyIdAndDeletedAtIsNull(agencyId, pageable);
         return toPageResponse(page);
     }
 
@@ -56,13 +60,17 @@ public class UserService {
         if (!TenantContext.isSuperAdmin() && agencyId == null) {
             throw new ForbiddenException("Agency context required to create user");
         }
+        UserRole role = dto.getRole() != null ? dto.getRole() : UserRole.AGENCY_AGENT;
+        if (role == UserRole.SUPER_ADMIN) {
+            throw new BadRequestException("Le rôle Super admin ne peut pas être attribué via ce formulaire");
+        }
         User user = User.builder()
                 .agencyId(TenantContext.isSuperAdmin() ? dto.getAgencyId() : agencyId)
                 .name(dto.getName())
                 .email(dto.getEmail())
                 .phone(dto.getPhone())
                 .password(passwordEncoder.encode(dto.getPassword() != null ? dto.getPassword() : "change-me"))
-                .role(dto.getRole() != null ? dto.getRole() : UserRole.AGENCY_AGENT)
+                .role(role)
                 .status(dto.getStatus() != null ? dto.getStatus() : UserStatus.ACTIVE)
                 .avatar(dto.getAvatar())
                 .emailVerified(dto.getEmailVerified() != null ? dto.getEmailVerified() : false)

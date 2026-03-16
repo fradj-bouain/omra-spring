@@ -35,6 +35,9 @@ public class UmrahGroup {
     private Integer maxCapacity;
     private BigDecimal price;
 
+    @Column(name = "planning_id")
+    private Long planningId;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private GroupStatus status;

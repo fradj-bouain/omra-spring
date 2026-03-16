@@ -5,16 +5,20 @@ import lombok.*;
 
 import java.time.Instant;
 
+/**
+ * Planning = modèle de programme (liste ordonnée de types de tâches).
+ * Un groupe Omra peut avoir un planning assigné.
+ */
 @Entity
-@Table(name = "buses", indexes = {
-    @Index(name = "idx_bus_agency_id", columnList = "agency_id")
+@Table(name = "plannings", indexes = {
+    @Index(name = "idx_planning_agency", columnList = "agency_id")
 })
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Bus {
+public class Planning {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -23,17 +27,11 @@ public class Bus {
     @Column(name = "agency_id", nullable = false)
     private Long agencyId;
 
-    @Column(nullable = false, length = 32)
-    private String plate;
+    @Column(nullable = false, length = 128)
+    private String name;
 
-    @Column(nullable = false)
-    private Integer capacity;
-
-    @Column(name = "driver_name", length = 128)
-    private String driverName;
-
-    @Column(name = "driver_contact", length = 64)
-    private String driverContact;
+    @Column(columnDefinition = "TEXT")
+    private String description;
 
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
@@ -44,6 +42,5 @@ public class Bus {
     @PrePersist
     protected void onCreate() {
         if (createdAt == null) createdAt = Instant.now();
-        if (capacity == null) capacity = 50;
     }
 }

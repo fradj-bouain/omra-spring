@@ -49,6 +49,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/api/agencies").hasRole("SUPER_ADMIN")
                         .requestMatchers("/api/agencies/**").authenticated()
+                        .requestMatchers("/api/audit-logs", "/api/audit-logs/**").hasAnyRole("SUPER_ADMIN", "AGENCY_ADMIN")
                         .requestMatchers("/api/**").authenticated()
                         .anyRequest().authenticated()
                 )

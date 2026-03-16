@@ -2,6 +2,7 @@ package com.omra.platform.controller;
 
 import com.omra.platform.dto.PageResponse;
 import com.omra.platform.dto.UserDto;
+import com.omra.platform.entity.enums.UserRole;
 import com.omra.platform.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -19,11 +20,12 @@ public class UserController {
     private final UserService userService;
 
     @GetMapping
-    @Operation(summary = "Get users (paginated)")
+    @Operation(summary = "Get users (paginated, optional filter by role)")
     public ResponseEntity<PageResponse<UserDto>> getUsers(
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(userService.getUsers(PageRequest.of(page - 1, size)));
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) UserRole role) {
+        return ResponseEntity.ok(userService.getUsers(PageRequest.of(page - 1, size), role));
     }
 
     @GetMapping("/{id}")

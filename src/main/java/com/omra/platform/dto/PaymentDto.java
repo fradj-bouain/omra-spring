@@ -7,6 +7,7 @@ import lombok.*;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.List;
 
 @Getter
 @Setter
@@ -25,5 +26,9 @@ public class PaymentDto {
     private PaymentStatus status;
     private LocalDate paymentDate;
     private String reference;
+    private LocalDate firstDueDate;
+    private Integer duePeriodDays;
+    private Integer numberOfInstallments;
+    private List<PaymentDueDto> dueDates;
     private Instant createdAt;
 }

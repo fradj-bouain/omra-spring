@@ -7,6 +7,7 @@ import lombok.*;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.List;
 
 @Getter
 @Setter
@@ -24,6 +25,9 @@ public class UmrahGroupDto {
     private LocalDate returnDate;
     private Integer maxCapacity;
     private BigDecimal price;
+    private Long planningId;
     private GroupStatus status;
     private Instant createdAt;
+    /** IDs des utilisateurs accompagnateurs (rôle PILGRIM_COMPANION) affectés au groupe */
+    private List<Long> companionIds;
 }

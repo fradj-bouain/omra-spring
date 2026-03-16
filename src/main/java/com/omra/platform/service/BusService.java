@@ -74,6 +74,8 @@ public class BusService {
                 .agencyId(agencyId)
                 .plate(dto.getPlate().trim())
                 .capacity(dto.getCapacity() != null ? dto.getCapacity() : 50)
+                .driverName(dto.getDriverName() != null ? dto.getDriverName().trim() : null)
+                .driverContact(dto.getDriverContact() != null ? dto.getDriverContact().trim() : null)
                 .build();
         bus = busRepository.save(bus);
         return toDto(bus);
@@ -84,6 +86,8 @@ public class BusService {
         Bus bus = findByIdAndAgency(id);
         if (dto.getPlate() != null) bus.setPlate(dto.getPlate());
         if (dto.getCapacity() != null) bus.setCapacity(dto.getCapacity());
+        if (dto.getDriverName() != null) bus.setDriverName(dto.getDriverName().trim());
+        if (dto.getDriverContact() != null) bus.setDriverContact(dto.getDriverContact().trim());
         bus = busRepository.save(bus);
         return toDto(bus);
     }
@@ -144,6 +148,8 @@ public class BusService {
                 .agencyId(e.getAgencyId())
                 .plate(e.getPlate())
                 .capacity(e.getCapacity())
+                .driverName(e.getDriverName())
+                .driverContact(e.getDriverContact())
                 .createdAt(e.getCreatedAt())
                 .build();
     }
