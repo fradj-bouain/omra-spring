@@ -3,6 +3,7 @@ package com.omra.platform.service;
 import com.omra.platform.dto.*;
 import com.omra.platform.entity.Agency;
 import com.omra.platform.entity.User;
+import com.omra.platform.entity.enums.UserRole;
 import com.omra.platform.entity.enums.UserStatus;
 import com.omra.platform.exception.BadRequestException;
 import com.omra.platform.exception.ForbiddenException;
@@ -45,6 +46,46 @@ public class AuthService {
 
         if (user.getStatus() == UserStatus.DISABLED) {
             throw new ForbiddenException("Account is disabled");
+        }
+
+        user.setLastLogin(Instant.now());
+        userRepository.save(user);
+
+        revokeRefreshTokensByUser(user.getId());
+        String accessToken = jwtService.generateAccessToken(user.getId(), user.getAgencyId(), user.getEmail(), user.getRole());
+        String refreshToken = createRefreshToken(user.getId());
+
+        Agency agency = null;
+        if (user.getAgencyId() != null) {
+            agency = agencyRepository.findById(user.getAgencyId()).orElse(null);
+        }
+
+        return AuthResponse.builder()
+                .accessToken(accessToken)
+                .refreshToken(refreshToken)
+                .user(userMapper.toDto(user))
+                .agency(agency != null ? agencyMapper.toDto(agency) : null)
+                .build();
+    }
+
+    /**
+     * Connexion réservée à l'app mobile accompagnateur (même JWT que /api/auth/login).
+     */
+    @Transactional
+    public AuthResponse loginForMobileCompanion(AuthRequest request) {
+        User user = userRepository.findByEmailAndDeletedAtIsNull(request.getEmail())
+                .orElseThrow(() -> new BadRequestException("Invalid email or password"));
+
+        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+            throw new BadRequestException("Invalid email or password");
+        }
+
+        if (user.getStatus() == UserStatus.DISABLED) {
+            throw new ForbiddenException("Account is disabled");
+        }
+
+        if (user.getRole() != UserRole.PILGRIM_COMPANION) {
+            throw new ForbiddenException("Accès réservé aux accompagnateurs de pèlerinage");
         }
 
         user.setLastLogin(Instant.now());

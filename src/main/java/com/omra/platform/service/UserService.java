@@ -10,6 +10,7 @@ import com.omra.platform.exception.ForbiddenException;
 import com.omra.platform.exception.ResourceNotFoundException;
 import com.omra.platform.mapper.UserMapper;
 import com.omra.platform.repository.UserRepository;
+import com.omra.platform.service.ReferralService;
 import com.omra.platform.util.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -28,6 +29,7 @@ public class UserService {
     private final UserRepository userRepository;
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
+    private final ReferralService referralService;
 
     @Transactional(readOnly = true)
     public PageResponse<UserDto> getUsers(Pageable pageable, UserRole roleFilter) {
@@ -76,6 +78,13 @@ public class UserService {
                 .emailVerified(dto.getEmailVerified() != null ? dto.getEmailVerified() : false)
                 .build();
         user = userRepository.save(user);
+        if (dto.getReferralCodeAtSignup() != null && !dto.getReferralCodeAtSignup().isBlank()) {
+            try {
+                referralService.applyReferral(user.getId(), dto.getReferralCodeAtSignup());
+            } catch (BadRequestException e) {
+                // Invalid code: we don't fail user creation, just skip referral
+            }
+        }
         return userMapper.toDto(user);
     }
 

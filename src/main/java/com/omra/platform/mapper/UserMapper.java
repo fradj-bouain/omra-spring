@@ -21,6 +21,7 @@ public class UserMapper {
                 .lastLogin(entity.getLastLogin())
                 .emailVerified(entity.getEmailVerified())
                 .createdAt(entity.getCreatedAt())
+                .referralCode(entity.getReferralCode())
                 .build();
     }
 }

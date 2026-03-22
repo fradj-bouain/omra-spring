@@ -81,6 +81,7 @@ public class PilgrimDashboardService {
                         .id(g.getId())
                         .agencyId(g.getAgencyId())
                         .name(g.getName())
+                        .tripType(g.getTripType())
                         .description(g.getDescription())
                         .departureDate(g.getDepartureDate())
                         .returnDate(g.getReturnDate())

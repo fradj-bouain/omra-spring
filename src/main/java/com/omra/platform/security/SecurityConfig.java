@@ -30,6 +30,7 @@ public class SecurityConfig {
     private static final String[] PUBLIC_PATHS = {
             "/api/auth/login",
             "/api/auth/refresh",
+            "/api/mobile/accompagnateur/login",
             "/api/admin/auth/login",
             "/api/admin/auth/refresh",
             "/api/admin/auth/logout",

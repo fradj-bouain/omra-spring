@@ -7,6 +7,8 @@ import java.util.List;
 
 public interface GroupCompanionRepository extends JpaRepository<GroupCompanion, Long> {
 
+    List<GroupCompanion> findByUserIdOrderByIdAsc(Long userId);
+
     List<GroupCompanion> findByGroupIdOrderByIdAsc(Long groupId);
 
     void deleteByGroupId(Long groupId);

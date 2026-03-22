@@ -53,6 +53,12 @@ public class User {
     private Instant lastLogin;
     private Boolean emailVerified;
 
+    @Column(name = "referral_code", unique = true, length = 16)
+    private String referralCode;
+
+    @Column(name = "referred_by_id")
+    private Long referredById;
+
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
 

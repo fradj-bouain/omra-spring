@@ -1,6 +1,7 @@
 package com.omra.platform.entity;
 
 import com.omra.platform.entity.enums.GroupStatus;
+import com.omra.platform.entity.enums.TripType;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -37,6 +38,11 @@ public class UmrahGroup {
 
     @Column(name = "planning_id")
     private Long planningId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "trip_type", nullable = false, length = 16)
+    @Builder.Default
+    private TripType tripType = TripType.OMRRA;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

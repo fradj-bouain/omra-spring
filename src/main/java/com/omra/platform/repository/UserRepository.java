@@ -26,4 +26,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Page<User> findByAgencyIdIsNullAndRoleAndDeletedAtIsNull(UserRole role, Pageable pageable);
 
     java.util.List<User> findByPilgrimIdAndDeletedAtIsNull(Long pilgrimId);
+
+    Optional<User> findByReferralCodeAndDeletedAtIsNull(String referralCode);
+
+    boolean existsByReferralCode(String referralCode);
 }

@@ -26,4 +26,8 @@ public class UserDto {
     private Instant lastLogin;
     private Boolean emailVerified;
     private Instant createdAt;
+    /** User's referral code (for sharing). Filled on GET. */
+    private String referralCode;
+    /** Referral code to apply at signup (create only). */
+    private String referralCodeAtSignup;
 }

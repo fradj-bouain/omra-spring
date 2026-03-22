@@ -50,6 +50,17 @@ public class PlanningService {
         return toDto(p);
     }
 
+    /**
+     * Lecture d'un planning pour une agence donnée (ex. app mobile accompagnateur, hors TenantContext).
+     */
+    @Transactional(readOnly = true)
+    public PlanningDto getByIdForAgency(Long id, Long agencyId) {
+        Planning p = planningRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Planning", id));
+        if (p.getDeletedAt() != null) throw new ResourceNotFoundException("Planning", id);
+        if (!p.getAgencyId().equals(agencyId)) throw new ForbiddenException("Access denied");
+        return toDto(p);
+    }
+
     @Transactional
     public PlanningDto create(PlanningDto dto) {
         Long agencyId = requireAgencyId();

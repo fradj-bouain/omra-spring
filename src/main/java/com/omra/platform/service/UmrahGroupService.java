@@ -90,6 +90,7 @@ public class UmrahGroupService {
         UmrahGroup group = UmrahGroup.builder()
                 .agencyId(agencyId)
                 .name(dto.getName())
+                .tripType(dto.getTripType() != null ? dto.getTripType() : com.omra.platform.entity.enums.TripType.OMRRA)
                 .description(dto.getDescription())
                 .departureDate(dto.getDepartureDate())
                 .returnDate(dto.getReturnDate())
@@ -107,6 +108,7 @@ public class UmrahGroupService {
     public UmrahGroupDto update(Long id, UmrahGroupDto dto) {
         UmrahGroup group = findByIdAndAgency(id);
         if (dto.getName() != null) group.setName(dto.getName());
+        if (dto.getTripType() != null) group.setTripType(dto.getTripType());
         if (dto.getDescription() != null) group.setDescription(dto.getDescription());
         if (dto.getDepartureDate() != null) group.setDepartureDate(dto.getDepartureDate());
         if (dto.getReturnDate() != null) group.setReturnDate(dto.getReturnDate());
@@ -215,6 +217,7 @@ public class UmrahGroupService {
                 .id(e.getId())
                 .agencyId(e.getAgencyId())
                 .name(e.getName())
+                .tripType(e.getTripType() != null ? e.getTripType() : com.omra.platform.entity.enums.TripType.OMRRA)
                 .description(e.getDescription())
                 .departureDate(e.getDepartureDate())
                 .returnDate(e.getReturnDate())

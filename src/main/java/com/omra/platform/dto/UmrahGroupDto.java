@@ -2,6 +2,7 @@ package com.omra.platform.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.omra.platform.entity.enums.GroupStatus;
+import com.omra.platform.entity.enums.TripType;
 import lombok.*;
 
 import java.math.BigDecimal;
@@ -20,6 +21,8 @@ public class UmrahGroupDto {
     @JsonProperty("agencyId")
     private Long agencyId;
     private String name;
+    /** Hajj ou Omra */
+    private TripType tripType;
     private String description;
     private LocalDate departureDate;
     private LocalDate returnDate;

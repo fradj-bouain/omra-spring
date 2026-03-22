@@ -61,6 +61,9 @@ app:
     username: ${DEFAULT_ADMIN_USERNAME:superadmin}
     email: ${DEFAULT_ADMIN_EMAIL:superadmin@omra.local}
     password: ${DEFAULT_ADMIN_PASSWORD:SuperAdmin123!}
+  # Referral (parrainage) base URL for referral links
+  referral:
+    base-url: ${REFERRAL_BASE_URL:https://myapp.com}
 
 # API (default 8081 to avoid conflict if 8080 is in use; set PORT=8080 to use 8080)
 server:
