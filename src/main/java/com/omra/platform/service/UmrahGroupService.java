@@ -27,7 +27,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -188,14 +191,34 @@ public class UmrahGroupService {
                 .build();
     }
 
+    /**
+     * Met à jour les accompagnateurs du groupe sans violer la contrainte unique (group_id, user_id).
+     * Évite delete-all + insert (ordre SQL / flush pouvait laisser d'anciennes lignes au moment de l'insert).
+     */
     private void saveCompanions(Long groupId, Long agencyId, List<Long> companionIds) {
-        if (companionIds == null || companionIds.isEmpty()) {
+        if (companionIds == null) {
+            return;
+        }
+        List<Long> wanted = companionIds.stream().filter(Objects::nonNull).distinct().toList();
+        if (wanted.isEmpty()) {
             groupCompanionRepository.deleteByGroupId(groupId);
             return;
         }
-        groupCompanionRepository.deleteByGroupId(groupId);
-        for (Long userId : companionIds) {
-            if (userId == null) continue;
+
+        List<GroupCompanion> existing = groupCompanionRepository.findByGroupIdOrderByIdAsc(groupId);
+        Set<Long> wantedSet = new HashSet<>(wanted);
+        Set<Long> existingUserIds = existing.stream().map(GroupCompanion::getUserId).collect(Collectors.toSet());
+
+        for (GroupCompanion gc : existing) {
+            if (!wantedSet.contains(gc.getUserId())) {
+                groupCompanionRepository.deleteById(gc.getId());
+            }
+        }
+
+        for (Long userId : wanted) {
+            if (existingUserIds.contains(userId)) {
+                continue;
+            }
             User user = userRepository.findById(userId)
                     .orElseThrow(() -> new ResourceNotFoundException("User", userId));
             if (user.getDeletedAt() != null) throw new ResourceNotFoundException("User", userId);
