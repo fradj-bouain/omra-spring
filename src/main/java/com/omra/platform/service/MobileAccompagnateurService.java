@@ -1,6 +1,9 @@
 package com.omra.platform.service;
 
 import com.omra.platform.dto.AgencyDto;
+import com.omra.platform.dto.BusDto;
+import com.omra.platform.dto.FlightDto;
+import com.omra.platform.dto.GroupHotelDto;
 import com.omra.platform.dto.PlanningDto;
 import com.omra.platform.dto.UserDto;
 import com.omra.platform.dto.mobile.*;
@@ -47,6 +50,9 @@ public class MobileAccompagnateurService {
     private final GroupPilgrimRepository groupPilgrimRepository;
     private final PilgrimRepository pilgrimRepository;
     private final PlanningService planningService;
+    private final FlightService flightService;
+    private final BusService busService;
+    private final HotelService hotelService;
     private final NotificationRepository notificationRepository;
     private final NotificationService notificationService;
 
@@ -141,8 +147,10 @@ public class MobileAccompagnateurService {
                 .collect(Collectors.toList());
     }
 
-    @Transactional(readOnly = true)
-    public MobileAccompagnateurGroupDetailDto getGroupDetail(Long groupId, boolean includePilgrims, boolean includePlanning) {
+    /**
+     * Vérifie que l'accompagnateur connecté est affecté au groupe (même agence, groupe non supprimé).
+     */
+    private UmrahGroup requireCompanionGroupAccess(Long groupId) {
         User user = requireCompanionUser();
         Long agencyId = user.getAgencyId();
         if (agencyId == null) throw new ForbiddenException("Aucune agence associée");
@@ -157,6 +165,13 @@ public class MobileAccompagnateurService {
                 .orElseThrow(() -> new ResourceNotFoundException("Group", groupId));
         if (g.getDeletedAt() != null) throw new ResourceNotFoundException("Group", groupId);
         if (!agencyId.equals(g.getAgencyId())) throw new ForbiddenException("Access denied");
+        return g;
+    }
+
+    @Transactional(readOnly = true)
+    public MobileAccompagnateurGroupDetailDto getGroupDetail(Long groupId, boolean includePilgrims, boolean includePlanning) {
+        UmrahGroup g = requireCompanionGroupAccess(groupId);
+        Long agencyId = g.getAgencyId();
 
         MobileAccompagnateurGroupSummaryDto summary = toGroupSummary(g);
 
@@ -182,6 +197,45 @@ public class MobileAccompagnateurService {
         }
 
         return builder.build();
+    }
+
+    @Transactional(readOnly = true)
+    public List<FlightDto> getFlightsForGroup(Long groupId) {
+        requireCompanionGroupAccess(groupId);
+        return flightService.getByGroupId(groupId);
+    }
+
+    @Transactional(readOnly = true)
+    public List<BusDto> getBusesForGroup(Long groupId) {
+        requireCompanionGroupAccess(groupId);
+        return busService.getBusesByGroup(groupId);
+    }
+
+    @Transactional(readOnly = true)
+    public PlanningDto getPlanningForGroup(Long groupId) {
+        UmrahGroup g = requireCompanionGroupAccess(groupId);
+        if (g.getPlanningId() == null) {
+            return null;
+        }
+        return planningService.getByIdForAgency(g.getPlanningId(), g.getAgencyId());
+    }
+
+    @Transactional(readOnly = true)
+    public List<GroupHotelDto> getHotelsForGroup(Long groupId) {
+        requireCompanionGroupAccess(groupId);
+        return hotelService.getHotelsByGroup(groupId);
+    }
+
+    @Transactional(readOnly = true)
+    public List<MobilePilgrimBriefDto> getPilgrimsForGroup(Long groupId) {
+        requireCompanionGroupAccess(groupId);
+        return groupPilgrimRepository.findByGroupId(groupId).stream()
+                .map(GroupPilgrim::getPilgrimId)
+                .map(pid -> pilgrimRepository.findById(pid).orElse(null))
+                .filter(Objects::nonNull)
+                .filter(p -> p.getDeletedAt() == null)
+                .map(this::toPilgrimBrief)
+                .collect(Collectors.toList());
     }
 
     private MobileAccompagnateurGroupSummaryDto toGroupSummary(UmrahGroup g) {

@@ -19,4 +19,6 @@ public class HotelDto {
     private String contactPhone;
     private String receptionPhone;
     private String email;
+    private Double latitude;
+    private Double longitude;
 }

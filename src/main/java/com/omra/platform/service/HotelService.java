@@ -65,6 +65,8 @@ public class HotelService {
                 .contactPhone(dto.getContactPhone())
                 .receptionPhone(dto.getReceptionPhone())
                 .email(dto.getEmail())
+                .latitude(dto.getLatitude())
+                .longitude(dto.getLongitude())
                 .build();
         hotel = hotelRepository.save(hotel);
         return toDto(hotel);
@@ -141,6 +143,8 @@ public class HotelService {
                 .contactPhone(e.getContactPhone())
                 .receptionPhone(e.getReceptionPhone())
                 .email(e.getEmail())
+                .latitude(e.getLatitude())
+                .longitude(e.getLongitude())
                 .build();
     }
 }

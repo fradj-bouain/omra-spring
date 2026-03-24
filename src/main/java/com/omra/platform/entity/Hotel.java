@@ -46,4 +46,9 @@ public class Hotel {
 
     @Column(length = 255)
     private String email;
+
+    /** WGS84 — position choisie sur la carte (Google Maps) */
+    private Double latitude;
+
+    private Double longitude;
 }

@@ -1,5 +1,9 @@
 package com.omra.platform.controller.mobile;
 
+import com.omra.platform.dto.BusDto;
+import com.omra.platform.dto.FlightDto;
+import com.omra.platform.dto.GroupHotelDto;
+import com.omra.platform.dto.PlanningDto;
 import com.omra.platform.dto.mobile.*;
 import com.omra.platform.service.MobileAccompagnateurService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -58,6 +62,56 @@ public class MobileAccompagnateurController {
     public ResponseEntity<MobileApiResponse<List<MobileAccompagnateurGroupSummaryDto>>> listGroups() {
         List<MobileAccompagnateurGroupSummaryDto> data = mobileAccompagnateurService.listMyGroups();
         return ResponseEntity.ok(MobileApiResponse.<List<MobileAccompagnateurGroupSummaryDto>>builder()
+                .success(true)
+                .data(data)
+                .build());
+    }
+
+    @GetMapping({"/groups/{groupId}/flights", "/groups/{groupId}/vols"})
+    @Operation(summary = "Vols du groupe Omra (accompagnateur affecté); alias /vols")
+    public ResponseEntity<MobileApiResponse<List<FlightDto>>> getGroupFlights(@PathVariable Long groupId) {
+        List<FlightDto> data = mobileAccompagnateurService.getFlightsForGroup(groupId);
+        return ResponseEntity.ok(MobileApiResponse.<List<FlightDto>>builder()
+                .success(true)
+                .data(data)
+                .build());
+    }
+
+    @GetMapping("/groups/{groupId}/buses")
+    @Operation(summary = "Bus assignés au groupe Omra")
+    public ResponseEntity<MobileApiResponse<List<BusDto>>> getGroupBuses(@PathVariable Long groupId) {
+        List<BusDto> data = mobileAccompagnateurService.getBusesForGroup(groupId);
+        return ResponseEntity.ok(MobileApiResponse.<List<BusDto>>builder()
+                .success(true)
+                .data(data)
+                .build());
+    }
+
+    @GetMapping("/groups/{groupId}/planning")
+    @Operation(summary = "Planning (programme) lié au groupe — data null si aucun planning")
+    public ResponseEntity<MobileApiResponse<PlanningDto>> getGroupPlanning(@PathVariable Long groupId) {
+        PlanningDto data = mobileAccompagnateurService.getPlanningForGroup(groupId);
+        return ResponseEntity.ok(MobileApiResponse.<PlanningDto>builder()
+                .success(true)
+                .data(data)
+                .build());
+    }
+
+    @GetMapping("/groups/{groupId}/hotels")
+    @Operation(summary = "Hôtels du groupe Omra")
+    public ResponseEntity<MobileApiResponse<List<GroupHotelDto>>> getGroupHotels(@PathVariable Long groupId) {
+        List<GroupHotelDto> data = mobileAccompagnateurService.getHotelsForGroup(groupId);
+        return ResponseEntity.ok(MobileApiResponse.<List<GroupHotelDto>>builder()
+                .success(true)
+                .data(data)
+                .build());
+    }
+
+    @GetMapping("/groups/{groupId}/pilgrims")
+    @Operation(summary = "Liste des pèlerins du groupe")
+    public ResponseEntity<MobileApiResponse<List<MobilePilgrimBriefDto>>> getGroupPilgrims(@PathVariable Long groupId) {
+        List<MobilePilgrimBriefDto> data = mobileAccompagnateurService.getPilgrimsForGroup(groupId);
+        return ResponseEntity.ok(MobileApiResponse.<List<MobilePilgrimBriefDto>>builder()
                 .success(true)
                 .data(data)
                 .build());
