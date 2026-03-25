@@ -5,13 +5,16 @@ spring:
   # PostgreSQL : définir DB_PASSWORD (et DB_USERNAME si besoin) selon votre installation.
   # Ex. : set DB_PASSWORD=votre_mot_de_passe_postgres && mvn spring-boot:run
   datasource:
-    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:omra_db}
-    username: ${DB_USERNAME:postgres}
-    password: ${DB_PASSWORD:postgres}
+    url: jdbc:postgresql://${PGHOST}:${PGPORT}/${PGDATABASE}
+    username: ${PGUSER}
+    password: ${PGPASSWORD}
     driver-class-name: org.postgresql.Driver
     hikari:
-      maximum-pool-size: 10
-      minimum-idle: 2
+      maximum-pool-size: ${DB_POOL_SIZE:10}
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
 
   jpa:
     # update = crée les tables manquantes et met à jour le schéma (dev). En prod, préférer validate + Flyway/Liquibase.
