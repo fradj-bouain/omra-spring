@@ -22,10 +22,13 @@ public class AgencyMapper {
                 .faviconUrl(entity.getFaviconUrl())
                 .primaryColor(entity.getPrimaryColor())
                 .secondaryColor(entity.getSecondaryColor())
+                .sidebarColor(entity.getSidebarColor())
                 .menuColor(entity.getMenuColor())
                 .buttonColor(entity.getButtonColor())
                 .backgroundColor(entity.getBackgroundColor())
+                .cardColor(entity.getCardColor())
                 .textColor(entity.getTextColor())
+                .themeMode(entity.getThemeMode())
                 .subscriptionPlan(entity.getSubscriptionPlan())
                 .subscriptionStartDate(entity.getSubscriptionStartDate())
                 .subscriptionEndDate(entity.getSubscriptionEndDate())
@@ -41,10 +44,13 @@ public class AgencyMapper {
                 .faviconUrl(entity.getFaviconUrl())
                 .primaryColor(entity.getPrimaryColor())
                 .secondaryColor(entity.getSecondaryColor())
+                .sidebarColor(entity.getSidebarColor())
                 .menuColor(entity.getMenuColor())
                 .buttonColor(entity.getButtonColor())
                 .backgroundColor(entity.getBackgroundColor())
+                .cardColor(entity.getCardColor())
                 .textColor(entity.getTextColor())
+                .themeMode(entity.getThemeMode())
                 .build();
     }
 }

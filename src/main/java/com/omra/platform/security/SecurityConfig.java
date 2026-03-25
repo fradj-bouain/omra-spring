@@ -34,6 +34,8 @@ public class SecurityConfig {
             "/api/admin/auth/login",
             "/api/admin/auth/refresh",
             "/api/admin/auth/logout",
+            "/api/public/translations",
+            "/api/public/translations/**",
             "/v3/api-docs/**",
             "/swagger-ui/**",
             "/swagger-ui.html"
@@ -47,6 +49,7 @@ public class SecurityConfig {
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(PUBLIC_PATHS).permitAll()
+                        .requestMatchers(HttpMethod.GET, "/uploads/**").permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/api/agencies").hasRole("SUPER_ADMIN")
                         .requestMatchers("/api/agencies/**").authenticated()

@@ -7,9 +7,12 @@ import com.omra.platform.entity.User;
 import com.omra.platform.entity.enums.AgencyStatus;
 import com.omra.platform.entity.enums.UserRole;
 import com.omra.platform.entity.enums.UserStatus;
+import com.omra.platform.exception.BadRequestException;
 import com.omra.platform.exception.ForbiddenException;
 import com.omra.platform.exception.ResourceNotFoundException;
 import com.omra.platform.mapper.AgencyMapper;
+import com.omra.platform.theme.AgencyThemeDefaults;
+import com.omra.platform.theme.HexColorValidator;
 import com.omra.platform.repository.AgencyRepository;
 import com.omra.platform.repository.UserRepository;
 import com.omra.platform.dto.PageResponse;
@@ -22,6 +25,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 @Service
@@ -65,17 +69,12 @@ public class AgencyService {
                 .address(dto.getAddress())
                 .logoUrl(dto.getLogoUrl())
                 .faviconUrl(dto.getFaviconUrl())
-                .primaryColor(dto.getPrimaryColor())
-                .secondaryColor(dto.getSecondaryColor())
-                .menuColor(dto.getMenuColor())
-                .buttonColor(dto.getButtonColor())
-                .backgroundColor(dto.getBackgroundColor())
-                .textColor(dto.getTextColor())
                 .subscriptionPlan(dto.getSubscriptionPlan())
                 .subscriptionStartDate(dto.getSubscriptionStartDate())
                 .subscriptionEndDate(dto.getSubscriptionEndDate())
                 .status(dto.getStatus() != null ? dto.getStatus() : AgencyStatus.ACTIVE)
                 .build();
+        AgencyThemeDefaults.applyThemeOnCreate(agency, dto);
         agency = agencyRepository.save(agency);
 
         // Default agency admin user: email = agency email, name = "admin", password = "000000"
@@ -109,12 +108,16 @@ public class AgencyService {
         if (dto.getStatus() != null) agency.setStatus(dto.getStatus());
         if (dto.getLogoUrl() != null) agency.setLogoUrl(dto.getLogoUrl());
         if (dto.getFaviconUrl() != null) agency.setFaviconUrl(dto.getFaviconUrl());
-        if (dto.getPrimaryColor() != null) agency.setPrimaryColor(dto.getPrimaryColor());
-        if (dto.getSecondaryColor() != null) agency.setSecondaryColor(dto.getSecondaryColor());
-        if (dto.getMenuColor() != null) agency.setMenuColor(dto.getMenuColor());
-        if (dto.getButtonColor() != null) agency.setButtonColor(dto.getButtonColor());
-        if (dto.getBackgroundColor() != null) agency.setBackgroundColor(dto.getBackgroundColor());
-        if (dto.getTextColor() != null) agency.setTextColor(dto.getTextColor());
+        patchHexColor(agency::setPrimaryColor, dto.getPrimaryColor(), "primaryColor");
+        patchHexColor(agency::setSecondaryColor, dto.getSecondaryColor(), "secondaryColor");
+        patchHexColor(agency::setSidebarColor, dto.getSidebarColor(), "sidebarColor");
+        patchHexColor(agency::setMenuColor, dto.getMenuColor(), "menuColor");
+        patchHexColor(agency::setButtonColor, dto.getButtonColor(), "buttonColor");
+        patchHexColor(agency::setBackgroundColor, dto.getBackgroundColor(), "backgroundColor");
+        patchHexColor(agency::setCardColor, dto.getCardColor(), "cardColor");
+        patchHexColor(agency::setTextColor, dto.getTextColor(), "textColor");
+        if (dto.getThemeMode() != null) agency.setThemeMode(dto.getThemeMode());
+        AgencyThemeDefaults.fillMissingThemeFields(agency);
         agency = agencyRepository.save(agency);
         return agencyMapper.toDto(agency);
     }
@@ -125,13 +128,19 @@ public class AgencyService {
         return agencyMapper.toDto(agency);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public AgencyThemeDto getTheme() {
         Long agencyId = TenantContext.getAgencyId();
         if (agencyId == null) return null;
         Agency agency = agencyRepository.findById(agencyId)
                 .orElseThrow(() -> new ResourceNotFoundException("Agency", agencyId));
-        return agencyMapper.toThemeDto(agency);
+        return themeDtoAfterEnsuringDefaults(agency);
+    }
+
+    @Transactional
+    public AgencyThemeDto getThemeForAgency(Long id) {
+        Agency agency = getAgencyForRead(id);
+        return themeDtoAfterEnsuringDefaults(agency);
     }
 
     @Transactional
@@ -140,19 +149,39 @@ public class AgencyService {
         if (agencyId == null) throw new ForbiddenException("No agency context");
         Agency agency = agencyRepository.findById(agencyId)
                 .orElseThrow(() -> new ResourceNotFoundException("Agency", agencyId));
-        if (!TenantContext.isSuperAdmin() && !agencyId.equals(TenantContext.getAgencyId())) {
-            throw new ForbiddenException("Cannot update another agency");
-        }
         if (dto.getLogoUrl() != null) agency.setLogoUrl(dto.getLogoUrl());
         if (dto.getFaviconUrl() != null) agency.setFaviconUrl(dto.getFaviconUrl());
-        if (dto.getPrimaryColor() != null) agency.setPrimaryColor(dto.getPrimaryColor());
-        if (dto.getSecondaryColor() != null) agency.setSecondaryColor(dto.getSecondaryColor());
-        if (dto.getMenuColor() != null) agency.setMenuColor(dto.getMenuColor());
-        if (dto.getButtonColor() != null) agency.setButtonColor(dto.getButtonColor());
-        if (dto.getBackgroundColor() != null) agency.setBackgroundColor(dto.getBackgroundColor());
-        if (dto.getTextColor() != null) agency.setTextColor(dto.getTextColor());
+        patchHexColor(agency::setPrimaryColor, dto.getPrimaryColor(), "primaryColor");
+        patchHexColor(agency::setSecondaryColor, dto.getSecondaryColor(), "secondaryColor");
+        patchHexColor(agency::setSidebarColor, dto.getSidebarColor(), "sidebarColor");
+        patchHexColor(agency::setMenuColor, dto.getMenuColor(), "menuColor");
+        patchHexColor(agency::setButtonColor, dto.getButtonColor(), "buttonColor");
+        patchHexColor(agency::setBackgroundColor, dto.getBackgroundColor(), "backgroundColor");
+        patchHexColor(agency::setCardColor, dto.getCardColor(), "cardColor");
+        patchHexColor(agency::setTextColor, dto.getTextColor(), "textColor");
+        if (dto.getThemeMode() != null) agency.setThemeMode(dto.getThemeMode());
+        AgencyThemeDefaults.fillMissingThemeFields(agency);
         agencyRepository.save(agency);
         return agencyMapper.toThemeDto(agency);
+    }
+
+    /** Persiste les défauts si l’agence avait des champs vides (données historiques). */
+    private AgencyThemeDto themeDtoAfterEnsuringDefaults(Agency agency) {
+        boolean changed = AgencyThemeDefaults.fillMissingThemeFields(agency);
+        if (changed) {
+            agencyRepository.save(agency);
+        }
+        return agencyMapper.toThemeDto(agency);
+    }
+
+    private void patchHexColor(Consumer<String> setter, String value, String field) {
+        if (value == null) {
+            return;
+        }
+        if (value.isBlank()) {
+            throw new BadRequestException(field + " cannot be empty; omit the field to keep the current value");
+        }
+        setter.accept(HexColorValidator.normalizeOrThrow(value, field));
     }
 
     private Agency getAgencyForRead(Long id) {

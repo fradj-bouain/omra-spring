@@ -1,6 +1,7 @@
 package com.omra.platform.entity;
 
 import com.omra.platform.entity.enums.AgencyStatus;
+import com.omra.platform.entity.enums.ThemeMode;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -36,10 +37,17 @@ public class Agency {
 
     private String primaryColor;
     private String secondaryColor;
+    /** Barre latérale (alias historique : {@link #menuColor}). */
+    private String sidebarColor;
     private String menuColor;
     private String buttonColor;
     private String backgroundColor;
+    private String cardColor;
     private String textColor;
+
+    @Enumerated(EnumType.STRING)
+    @Column(length = 16)
+    private ThemeMode themeMode;
 
     private String subscriptionPlan;
     private LocalDate subscriptionStartDate;

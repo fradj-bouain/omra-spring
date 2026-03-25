@@ -33,6 +33,12 @@ public class AgencyController {
         return ResponseEntity.ok(agencyService.getTheme());
     }
 
+    @GetMapping("/{id}/theme")
+    @Operation(summary = "Get agency theme by id (same tenant or super admin)")
+    public ResponseEntity<AgencyThemeDto> getThemeByAgencyId(@PathVariable Long id) {
+        return ResponseEntity.ok(agencyService.getThemeForAgency(id));
+    }
+
     @GetMapping("/{id}")
     @Operation(summary = "Get agency by ID")
     public ResponseEntity<AgencyDto> getById(@PathVariable Long id) {

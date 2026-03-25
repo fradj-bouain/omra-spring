@@ -1,6 +1,7 @@
 package com.omra.platform.dto;
 
 import com.omra.platform.entity.enums.AgencyStatus;
+import com.omra.platform.entity.enums.ThemeMode;
 import lombok.*;
 
 import java.time.Instant;
@@ -24,10 +25,13 @@ public class AgencyDto {
     private String faviconUrl;
     private String primaryColor;
     private String secondaryColor;
+    private String sidebarColor;
     private String menuColor;
     private String buttonColor;
     private String backgroundColor;
+    private String cardColor;
     private String textColor;
+    private ThemeMode themeMode;
     private String subscriptionPlan;
     private LocalDate subscriptionStartDate;
     private LocalDate subscriptionEndDate;
