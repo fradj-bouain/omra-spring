@@ -2,20 +2,24 @@ package com.omra.platform.service;
 
 import com.omra.platform.dto.PageResponse;
 import com.omra.platform.dto.PilgrimDto;
+import com.omra.platform.dto.PilgrimSearchResultDto;
 import com.omra.platform.entity.Pilgrim;
+import com.omra.platform.entity.enums.SponsorType;
+import com.omra.platform.entity.enums.VisaStatus;
 import com.omra.platform.exception.BadRequestException;
 import com.omra.platform.exception.ForbiddenException;
 import com.omra.platform.exception.ResourceNotFoundException;
-import com.omra.platform.entity.enums.VisaStatus;
 import com.omra.platform.repository.PilgrimRepository;
 import com.omra.platform.util.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -25,6 +29,7 @@ public class PilgrimService {
 
     private final PilgrimRepository pilgrimRepository;
     private final NotificationProducerService notificationProducer;
+    private final PilgrimSponsorshipService pilgrimSponsorshipService;
 
     private Long requireAgencyId() {
         Long agencyId = TenantContext.getAgencyId();
@@ -48,7 +53,29 @@ public class PilgrimService {
     @Transactional(readOnly = true)
     public PilgrimDto getById(Long id) {
         Pilgrim pilgrim = findByIdAndAgency(id);
-        return toDto(pilgrim);
+        return toDtoWithEnrichment(pilgrim);
+    }
+
+    /** Autocomplete pour choisir un pèlerin parrain (min. 2 caractères). */
+    @Transactional(readOnly = true)
+    public List<PilgrimSearchResultDto> autocompletePilgrims(String q, int limit) {
+        Long agencyId = requireAgencyId();
+        if (agencyId == null) {
+            return Collections.emptyList();
+        }
+        if (q == null || q.trim().length() < 2) {
+            return Collections.emptyList();
+        }
+        int lim = Math.min(Math.max(limit, 1), 50);
+        Pageable pageable = PageRequest.of(0, lim);
+        return pilgrimRepository.searchForAutocomplete(agencyId, q.trim(), pageable).stream()
+                .map(p -> PilgrimSearchResultDto.builder()
+                        .id(p.getId())
+                        .firstName(p.getFirstName())
+                        .lastName(p.getLastName())
+                        .passportNumber(p.getPassportNumber())
+                        .build())
+                .collect(Collectors.toList());
     }
 
     @Transactional
@@ -58,6 +85,9 @@ public class PilgrimService {
         if (dto.getPassportNumber() != null && !dto.getPassportNumber().isBlank()
                 && pilgrimRepository.existsByAgencyIdAndPassportNumberAndDeletedAtIsNull(agencyId, dto.getPassportNumber().trim())) {
             throw new BadRequestException("Un pèlerin avec ce numéro de passeport existe déjà pour cette agence.");
+        }
+        if (dto.getSponsorType() == SponsorType.PILGRIM && dto.getReferrerPilgrimId() == null) {
+            throw new BadRequestException("Pour un parrain de type Pèlerin, sélectionnez le pèlerin parrain dans la liste.");
         }
         Pilgrim pilgrim = Pilgrim.builder()
                 .agencyId(agencyId)
@@ -74,10 +104,15 @@ public class PilgrimService {
                 .address(dto.getAddress())
                 .photoUrl(dto.getPhotoUrl())
                 .passportScanUrl(dto.getPassportScanUrl())
-                .visaStatus(dto.getVisaStatus() != null ? dto.getVisaStatus() : com.omra.platform.entity.enums.VisaStatus.PENDING)
+                .visaStatus(dto.getVisaStatus() != null ? dto.getVisaStatus() : VisaStatus.PENDING)
+                .sponsorType(dto.getSponsorType())
+                .sponsorLabel(trimOrNull(dto.getSponsorLabel()))
+                .referrerPilgrimId(dto.getSponsorType() == SponsorType.PILGRIM ? dto.getReferrerPilgrimId() : null)
+                .referralPoints(0)
                 .build();
         pilgrim = pilgrimRepository.save(pilgrim);
-        return toDto(pilgrim);
+        pilgrimSponsorshipService.afterPilgrimCreated(pilgrim, dto);
+        return toDtoWithEnrichment(pilgrim);
     }
 
     @Transactional
@@ -107,7 +142,7 @@ public class PilgrimService {
             String name = pilgrim.getFirstName() + " " + pilgrim.getLastName();
             notificationProducer.notifyVisaStatusChange(pilgrim.getAgencyId(), pilgrim.getId(), name, pilgrim.getVisaStatus().name());
         }
-        return toDto(pilgrim);
+        return toDtoWithEnrichment(pilgrim);
     }
 
     @Transactional
@@ -115,6 +150,12 @@ public class PilgrimService {
         Pilgrim pilgrim = findByIdAndAgency(id);
         pilgrim.setDeletedAt(Instant.now());
         pilgrimRepository.save(pilgrim);
+    }
+
+    private static String trimOrNull(String s) {
+        if (s == null) return null;
+        String t = s.trim();
+        return t.isEmpty() ? null : t;
     }
 
     private Pilgrim findByIdAndAgency(Long id) {
@@ -162,6 +203,16 @@ public class PilgrimService {
                 .passportScanUrl(e.getPassportScanUrl())
                 .visaStatus(e.getVisaStatus())
                 .createdAt(e.getCreatedAt())
+                .sponsorType(e.getSponsorType())
+                .sponsorLabel(e.getSponsorLabel())
+                .referrerPilgrimId(e.getReferrerPilgrimId())
+                .referralPoints(e.getReferralPoints())
                 .build();
+    }
+
+    private PilgrimDto toDtoWithEnrichment(Pilgrim e) {
+        PilgrimDto d = toDto(e);
+        pilgrimSponsorshipService.enrichPilgrimDto(d, e, e.getAgencyId());
+        return d;
     }
 }

@@ -1,6 +1,7 @@
 package com.omra.platform.service;
 
 import com.omra.platform.dto.DocumentDto;
+import com.omra.platform.dto.DocumentPatchDto;
 import com.omra.platform.dto.PageResponse;
 import com.omra.platform.entity.Document;
 import com.omra.platform.exception.ForbiddenException;
@@ -66,6 +67,16 @@ public class DocumentService {
         String pilgrimName = doc.getPilgrimId() != null ? pilgrimRepository.findById(doc.getPilgrimId())
                 .map(p -> p.getFirstName() + " " + p.getLastName()).orElse(null) : null;
         notificationProducer.notifyDocumentUploaded(doc.getAgencyId(), doc.getId(), pilgrimName, doc.getType() != null ? doc.getType().name() : null);
+        return toDto(doc);
+    }
+
+    @Transactional
+    public DocumentDto patch(Long id, DocumentPatchDto patch) {
+        Document doc = findByIdAndAgency(id);
+        if (patch != null && patch.getStatus() != null) {
+            doc.setStatus(patch.getStatus());
+            documentRepository.save(doc);
+        }
         return toDto(doc);
     }
 

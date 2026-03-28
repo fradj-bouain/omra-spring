@@ -16,6 +16,7 @@ spring:
       idle-timeout: 600000
       max-lifetime: 1800000
 
+
   jpa:
     # update = crée les tables manquantes et met à jour le schéma (dev). En prod, préférer validate + Flyway/Liquibase.
     hibernate:
@@ -70,6 +71,9 @@ app:
   # Referral (parrainage) base URL for referral links
   referral:
     base-url: ${REFERRAL_BASE_URL:https://myapp.com}
+  # Parrainage entre pèlerins : points attribués au parrain à chaque filleul enregistré
+  pilgrim-sponsorship:
+    points-per-referral: ${PILGRIM_SPONSORSHIP_POINTS_PER_REFERRAL:10}
   # Traductions UI : upsert au démarrage depuis i18n/ui-translations.seed.json (voir tools/generate-ui-translations.mjs)
   i18n:
     seed:

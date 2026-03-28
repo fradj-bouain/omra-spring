@@ -1,6 +1,7 @@
 package com.omra.platform.controller;
 
 import com.omra.platform.dto.DocumentDto;
+import com.omra.platform.dto.DocumentPatchDto;
 import com.omra.platform.dto.PageResponse;
 import com.omra.platform.service.DocumentService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -44,6 +45,12 @@ public class DocumentController {
     @Operation(summary = "Create document (register file)")
     public ResponseEntity<DocumentDto> create(@RequestBody DocumentDto dto) {
         return ResponseEntity.ok(documentService.create(dto));
+    }
+
+    @PatchMapping("/{id}")
+    @Operation(summary = "Update document (partial, e.g. status)")
+    public ResponseEntity<DocumentDto> patch(@PathVariable Long id, @RequestBody DocumentPatchDto patch) {
+        return ResponseEntity.ok(documentService.patch(id, patch));
     }
 
     @DeleteMapping("/{id}")

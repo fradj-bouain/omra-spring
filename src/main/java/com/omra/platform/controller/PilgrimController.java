@@ -2,6 +2,7 @@ package com.omra.platform.controller;
 
 import com.omra.platform.dto.PageResponse;
 import com.omra.platform.dto.PilgrimDto;
+import com.omra.platform.dto.PilgrimSearchResultDto;
 import com.omra.platform.service.PilgrimService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -9,6 +10,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/pilgrims")
@@ -24,6 +27,14 @@ public class PilgrimController {
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size) {
         return ResponseEntity.ok(pilgrimService.getPilgrims(PageRequest.of(page - 1, size)));
+    }
+
+    @GetMapping("/autocomplete")
+    @Operation(summary = "Recherche pèlerins (parrainage, min. 2 caractères)")
+    public ResponseEntity<List<PilgrimSearchResultDto>> autocomplete(
+            @RequestParam String q,
+            @RequestParam(defaultValue = "15") int limit) {
+        return ResponseEntity.ok(pilgrimService.autocompletePilgrims(q, limit));
     }
 
     @GetMapping("/{id}")
