@@ -1,12 +1,14 @@
 package com.omra.platform.repository;
 
 import com.omra.platform.entity.Pilgrim;
+import com.omra.platform.entity.enums.VisaStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -17,6 +19,12 @@ public interface PilgrimRepository extends JpaRepository<Pilgrim, Long> {
     Page<Pilgrim> findByAgencyIdAndDeletedAtIsNull(Long agencyId, Pageable pageable);
 
     Page<Pilgrim> findByDeletedAtIsNull(Pageable pageable);
+
+    long countByDeletedAtIsNull();
+
+    long countByAgencyIdAndDeletedAtIsNull(Long agencyId);
+
+    long countByDeletedAtIsNullAndVisaStatusIn(Collection<VisaStatus> statuses);
 
     boolean existsByAgencyIdAndPassportNumberAndDeletedAtIsNull(Long agencyId, String passportNumber);
 

@@ -10,4 +10,8 @@ public interface UmrahGroupRepository extends JpaRepository<UmrahGroup, Long> {
     Page<UmrahGroup> findByAgencyIdAndDeletedAtIsNull(Long agencyId, Pageable pageable);
 
     Page<UmrahGroup> findByDeletedAtIsNull(Pageable pageable);
+
+    long countByDeletedAtIsNull();
+
+    long countByAgencyIdAndDeletedAtIsNull(Long agencyId);
 }

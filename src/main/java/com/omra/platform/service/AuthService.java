@@ -34,6 +34,7 @@ public class AuthService {
     private final UserMapper userMapper;
     private final AgencyMapper agencyMapper;
     private final JwtProperties jwtProperties;
+    private final SubscriptionGateService subscriptionGateService;
 
     @Transactional
     public AuthResponse login(AuthRequest request) {
@@ -47,6 +48,8 @@ public class AuthService {
         if (user.getStatus() == UserStatus.DISABLED) {
             throw new ForbiddenException("Account is disabled");
         }
+
+        subscriptionGateService.assertAgencyUsersMayAuthenticate(user.getAgencyId());
 
         user.setLastLogin(Instant.now());
         userRepository.save(user);
@@ -87,6 +90,8 @@ public class AuthService {
         if (user.getRole() != UserRole.PILGRIM_COMPANION) {
             throw new ForbiddenException("Accès réservé aux accompagnateurs de pèlerinage");
         }
+
+        subscriptionGateService.assertAgencyUsersMayAuthenticate(user.getAgencyId());
 
         user.setLastLogin(Instant.now());
         userRepository.save(user);
@@ -129,6 +134,8 @@ public class AuthService {
         if (user.getDeletedAt() != null || user.getStatus() == UserStatus.DISABLED) {
             throw new ForbiddenException("Account is disabled");
         }
+
+        subscriptionGateService.assertAgencyUsersMayAuthenticate(user.getAgencyId());
 
         String accessToken = jwtService.generateAccessToken(user.getId(), user.getAgencyId(), user.getEmail(), user.getRole());
         String newRefreshToken = createRefreshToken(user.getId());

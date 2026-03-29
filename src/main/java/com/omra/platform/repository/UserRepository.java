@@ -30,4 +30,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByReferralCodeAndDeletedAtIsNull(String referralCode);
 
     boolean existsByReferralCode(String referralCode);
+
+    long countByAgencyIdAndDeletedAtIsNull(Long agencyId);
+
+    long countByAgencyIdIsNotNullAndDeletedAtIsNull();
 }

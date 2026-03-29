@@ -1,6 +1,7 @@
 package com.omra.platform.controller;
 
 import com.omra.platform.dto.AgencyDto;
+import com.omra.platform.dto.AgencyMetricsDto;
 import com.omra.platform.dto.AgencyThemeDto;
 import com.omra.platform.dto.PageResponse;
 import com.omra.platform.service.AgencyService;
@@ -37,6 +38,12 @@ public class AgencyController {
     @Operation(summary = "Get agency theme by id (same tenant or super admin)")
     public ResponseEntity<AgencyThemeDto> getThemeByAgencyId(@PathVariable Long id) {
         return ResponseEntity.ok(agencyService.getThemeForAgency(id));
+    }
+
+    @GetMapping("/{id}/metrics")
+    @Operation(summary = "Indicateurs agence (utilisateurs, pèlerins, groupes, encaissements)")
+    public ResponseEntity<AgencyMetricsDto> getMetrics(@PathVariable Long id) {
+        return ResponseEntity.ok(agencyService.getMetrics(id));
     }
 
     @GetMapping("/{id}")

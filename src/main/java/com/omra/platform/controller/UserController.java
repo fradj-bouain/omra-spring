@@ -20,12 +20,13 @@ public class UserController {
     private final UserService userService;
 
     @GetMapping
-    @Operation(summary = "Get users (paginated, optional filter by role)")
+    @Operation(summary = "Get users (paginated, optional filter by role). Super-admin: optional agencyId = utilisateurs de cette agence.")
     public ResponseEntity<PageResponse<UserDto>> getUsers(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size,
-            @RequestParam(required = false) UserRole role) {
-        return ResponseEntity.ok(userService.getUsers(PageRequest.of(page - 1, size), role));
+            @RequestParam(required = false) UserRole role,
+            @RequestParam(required = false) Long agencyId) {
+        return ResponseEntity.ok(userService.getUsers(PageRequest.of(page - 1, size), role, agencyId));
     }
 
     @GetMapping("/{id}")
@@ -38,5 +39,11 @@ public class UserController {
     @Operation(summary = "Create user")
     public ResponseEntity<UserDto> create(@RequestBody UserDto dto) {
         return ResponseEntity.ok(userService.create(dto));
+    }
+
+    @PutMapping("/{id}")
+    @Operation(summary = "Update user (mot de passe optionnel : uniquement si le champ password est renseigné)")
+    public ResponseEntity<UserDto> update(@PathVariable Long id, @RequestBody UserDto dto) {
+        return ResponseEntity.ok(userService.update(id, dto));
     }
 }

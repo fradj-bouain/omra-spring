@@ -31,7 +31,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(ForbiddenException.class)
     public ResponseEntity<ErrorResponse> handleForbidden(ForbiddenException ex, HttpServletRequest request) {
-        return buildResponse(HttpStatus.FORBIDDEN, ex.getMessage(), request.getRequestURI(), null);
+        return buildResponse(HttpStatus.FORBIDDEN, ex.getMessage(), request.getRequestURI(), null, ex.getCode());
     }
 
     @ExceptionHandler(BadCredentialsException.class)
@@ -67,6 +67,15 @@ public class GlobalExceptionHandler {
     }
 
     private ResponseEntity<ErrorResponse> buildResponse(HttpStatus status, String message, String path, List<ErrorResponse.FieldError> fieldErrors) {
+        return buildResponse(status, message, path, fieldErrors, null);
+    }
+
+    private ResponseEntity<ErrorResponse> buildResponse(
+            HttpStatus status,
+            String message,
+            String path,
+            List<ErrorResponse.FieldError> fieldErrors,
+            String code) {
         return ResponseEntity
                 .status(status)
                 .body(ErrorResponse.builder()
@@ -74,6 +83,7 @@ public class GlobalExceptionHandler {
                         .status(status.value())
                         .error(status.getReasonPhrase())
                         .message(message)
+                        .code(code)
                         .path(path)
                         .fieldErrors(fieldErrors)
                         .build());

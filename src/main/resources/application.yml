@@ -58,8 +58,9 @@ storage:
 
 # Default super admin (User - créé au premier démarrage si activé)
 app:
+  # Compte User SUPER_ADMIN désactivé : la plateforme utilise uniquement la table `admins` + /api/admin/auth (voir admin-omra).
   default-super-admin:
-    enabled: ${DEFAULT_SUPER_ADMIN_ENABLED:true}
+    enabled: ${DEFAULT_SUPER_ADMIN_ENABLED:false}
     email: ${DEFAULT_SUPER_ADMIN_EMAIL:superadmin@omra.local}
     password: ${DEFAULT_SUPER_ADMIN_PASSWORD:SuperAdmin123!}
   # Platform Admin (table admins) - can create agencies and activate/deactivate
@@ -78,6 +79,9 @@ app:
   i18n:
     seed:
       enabled: ${I18N_SEED_ENABLED:true}
+  subscription:
+    # Expiration abonnements + suspension agences sans couverture (cron Spring)
+    maintenance-cron: ${SUBSCRIPTION_MAINTENANCE_CRON:0 0 3 * * *}
 
 # API (default 8081 to avoid conflict if 8080 is in use; set PORT=8080 to use 8080)
 server:

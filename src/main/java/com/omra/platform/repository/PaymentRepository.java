@@ -27,4 +27,11 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
     BigDecimal sumAmountByGroupIdAndStatus(@Param("groupId") Long groupId, @Param("status") PaymentStatus status);
 
     List<Payment> findByAgencyIdAndStatusAndDeletedAtIsNullAndPaymentDateBetween(Long agencyId, PaymentStatus status, LocalDate start, LocalDate end);
+
+    @Query("SELECT COALESCE(SUM(p.amount), 0) FROM Payment p WHERE p.status = :status AND p.deletedAt IS NULL")
+    BigDecimal sumAmountByStatus(@Param("status") PaymentStatus status);
+
+    Page<Payment> findByDeletedAtIsNull(Pageable pageable);
+
+    List<Payment> findByStatusAndDeletedAtIsNullAndPaymentDateBetween(PaymentStatus status, LocalDate start, LocalDate end);
 }

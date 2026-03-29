@@ -26,6 +26,7 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
+    private final SubscriptionEnforcementFilter subscriptionEnforcementFilter;
 
     private static final String[] PUBLIC_PATHS = {
             "/api/auth/login",
@@ -39,6 +40,7 @@ public class SecurityConfig {
             "/v3/api-docs/**",
             "/swagger-ui/**",
             "/swagger-ui.html"
+            
     };
 
     @Bean
@@ -51,13 +53,16 @@ public class SecurityConfig {
                         .requestMatchers(PUBLIC_PATHS).permitAll()
                         .requestMatchers(HttpMethod.GET, "/uploads/**").permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        .requestMatchers("/api/subscription-plans", "/api/subscription-plans/**").hasRole("SUPER_ADMIN")
+                        .requestMatchers("/api/agencies/*/subscriptions/**").hasRole("SUPER_ADMIN")
                         .requestMatchers("/api/agencies").hasRole("SUPER_ADMIN")
                         .requestMatchers("/api/agencies/**").authenticated()
                         .requestMatchers("/api/audit-logs", "/api/audit-logs/**").hasAnyRole("SUPER_ADMIN", "AGENCY_ADMIN")
                         .requestMatchers("/api/**").authenticated()
                         .anyRequest().authenticated()
                 )
-                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(subscriptionEnforcementFilter, JwtAuthFilter.class);
 
         return http.build();
     }
@@ -72,8 +77,9 @@ public class SecurityConfig {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowedOrigins(List.of(
                 "http://localhost:4200",
-                "https://omra-front-production.up.railway.app",
-                "http://127.0.0.1:4200"
+                "http://127.0.0.1:4200",
+                "http://localhost:4201",
+                "http://127.0.0.1:4201"
         ));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));

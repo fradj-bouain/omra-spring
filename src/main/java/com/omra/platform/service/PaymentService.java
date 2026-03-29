@@ -45,9 +45,21 @@ public class PaymentService {
     }
 
     @Transactional(readOnly = true)
-    public PageResponse<PaymentDto> getPayments(Pageable pageable) {
-        Long agencyId = requireAgencyId();
-        Page<Payment> page = paymentRepository.findByAgencyIdAndDeletedAtIsNull(agencyId, pageable);
+    public PageResponse<PaymentDto> getPayments(Pageable pageable, Long agencyFilter) {
+        Page<Payment> page;
+        if (TenantContext.isSuperAdmin()) {
+            if (agencyFilter != null) {
+                page = paymentRepository.findByAgencyIdAndDeletedAtIsNull(agencyFilter, pageable);
+            } else {
+                page = paymentRepository.findByDeletedAtIsNull(pageable);
+            }
+        } else {
+            Long agencyId = requireAgencyId();
+            if (agencyId == null) {
+                throw new ForbiddenException("Agency context required");
+            }
+            page = paymentRepository.findByAgencyIdAndDeletedAtIsNull(agencyId, pageable);
+        }
         return toPageResponse(page);
     }
 

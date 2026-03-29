@@ -16,6 +16,8 @@ public class ErrorResponse {
     private final int status;
     private final String error;
     private final String message;
+    /** Code fonctionnel pour le client (ex. SUBSCRIPTION_INACTIVE). */
+    private final String code;
     private final String path;
     private final List<FieldError> fieldErrors;
 

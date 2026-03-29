@@ -4,13 +4,16 @@ import com.omra.platform.dto.DashboardChartDto;
 import com.omra.platform.dto.DashboardGroupKpiDto;
 import com.omra.platform.dto.DashboardStatsDto;
 import com.omra.platform.entity.UmrahGroup;
+import com.omra.platform.entity.enums.AgencyStatus;
 import com.omra.platform.entity.enums.PaymentStatus;
 import com.omra.platform.entity.enums.VisaStatus;
 import com.omra.platform.exception.ForbiddenException;
+import com.omra.platform.repository.AgencyRepository;
 import com.omra.platform.repository.GroupPilgrimRepository;
 import com.omra.platform.repository.PaymentRepository;
 import com.omra.platform.repository.PilgrimRepository;
 import com.omra.platform.repository.UmrahGroupRepository;
+import com.omra.platform.repository.UserRepository;
 import com.omra.platform.util.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
@@ -20,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -32,6 +36,8 @@ public class DashboardService {
     private final UmrahGroupRepository groupRepository;
     private final PaymentRepository paymentRepository;
     private final GroupPilgrimRepository groupPilgrimRepository;
+    private final AgencyRepository agencyRepository;
+    private final UserRepository userRepository;
 
     @Transactional(readOnly = true)
     public DashboardStatsDto getStats() {
@@ -40,12 +46,23 @@ public class DashboardService {
             throw new ForbiddenException("Agency context required");
         }
         if (TenantContext.isSuperAdmin() && agencyId == null) {
+            BigDecimal paidGlobal = paymentRepository.sumAmountByStatus(PaymentStatus.PAID);
+            if (paidGlobal == null) {
+                paidGlobal = BigDecimal.ZERO;
+            }
+            long pendingVisasGlobal = pilgrimRepository.countByDeletedAtIsNullAndVisaStatusIn(
+                    EnumSet.of(VisaStatus.PENDING, VisaStatus.SUBMITTED));
             return DashboardStatsDto.builder()
-                    .totalPilgrims(pilgrimRepository.count())
-                    .activeGroups(0)
-                    .pendingVisas(0)
-                    .paymentsReceived(BigDecimal.ZERO)
-                    .totalRevenue(BigDecimal.ZERO)
+                    .totalPilgrims(pilgrimRepository.countByDeletedAtIsNull())
+                    .activeGroups(groupRepository.countByDeletedAtIsNull())
+                    .pendingVisas(pendingVisasGlobal)
+                    .paymentsReceived(paidGlobal)
+                    .totalRevenue(paidGlobal)
+                    .totalAgencies(agencyRepository.count())
+                    .activeAgencies(agencyRepository.countByStatus(AgencyStatus.ACTIVE))
+                    .suspendedAgencies(agencyRepository.countByStatus(AgencyStatus.SUSPENDED))
+                    .expiredAgencies(agencyRepository.countByStatus(AgencyStatus.EXPIRED))
+                    .totalAgencyUsers(userRepository.countByAgencyIdIsNotNullAndDeletedAtIsNull())
                     .build();
         }
 
@@ -64,6 +81,11 @@ public class DashboardService {
                 .pendingVisas(pendingVisas)
                 .paymentsReceived(totalRevenue)
                 .totalRevenue(totalRevenue)
+                .totalAgencies(0)
+                .activeAgencies(0)
+                .suspendedAgencies(0)
+                .expiredAgencies(0)
+                .totalAgencyUsers(0)
                 .build();
     }
 
@@ -102,9 +124,31 @@ public class DashboardService {
             throw new ForbiddenException("Agency context required");
         }
         if (TenantContext.isSuperAdmin() && agencyId == null) {
+            LocalDate end = LocalDate.now();
+            LocalDate start = end.minusMonths(12);
+            List<com.omra.platform.entity.Payment> paymentsGlobal =
+                    paymentRepository.findByStatusAndDeletedAtIsNullAndPaymentDateBetween(PaymentStatus.PAID, start, end);
+            Map<String, BigDecimal> byPeriod = paymentsGlobal.stream()
+                    .filter(p -> p.getPaymentDate() != null)
+                    .collect(Collectors.groupingBy(
+                            p -> p.getPaymentDate().getYear() + "-" + String.format("%02d", p.getPaymentDate().getMonthValue()),
+                            Collectors.reducing(BigDecimal.ZERO, com.omra.platform.entity.Payment::getAmount, BigDecimal::add)));
+            List<DashboardChartDto.PeriodAmountDto> paymentsOverTime = byPeriod.entrySet().stream()
+                    .sorted(Map.Entry.comparingByKey())
+                    .map(e -> new DashboardChartDto.PeriodAmountDto(e.getKey(), e.getValue()))
+                    .toList();
+            List<com.omra.platform.entity.Pilgrim> pilgrims =
+                    pilgrimRepository.findByDeletedAtIsNull(PageRequest.of(0, Integer.MAX_VALUE)).getContent();
+            Map<VisaStatus, Long> visaCounts = pilgrims.stream()
+                    .collect(Collectors.groupingBy(
+                            p -> p.getVisaStatus() != null ? p.getVisaStatus() : VisaStatus.PENDING,
+                            Collectors.counting()));
+            List<DashboardChartDto.StatusCountDto> visaDistribution = visaCounts.entrySet().stream()
+                    .map(e -> new DashboardChartDto.StatusCountDto(e.getKey().name(), e.getValue()))
+                    .toList();
             return DashboardChartDto.builder()
-                    .paymentsOverTime(List.of())
-                    .visaDistribution(List.of())
+                    .paymentsOverTime(paymentsOverTime)
+                    .visaDistribution(visaDistribution)
                     .build();
         }
         LocalDate end = LocalDate.now();

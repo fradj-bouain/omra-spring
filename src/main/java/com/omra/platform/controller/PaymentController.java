@@ -19,11 +19,15 @@ public class PaymentController {
     private final PaymentService paymentService;
 
     @GetMapping
-    @Operation(summary = "Get payments (paginated)")
+    @Operation(summary = "Get payments (paginated). Super-admin: agencyId optionnel pour filtrer, sinon toutes les agences.")
     public ResponseEntity<PageResponse<PaymentDto>> getPayments(
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(paymentService.getPayments(PageRequest.of(page - 1, size)));
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) Long agencyId) {
+        // Page côté client = 1-based (comme omra-front). page=0 évite l’exception (ex. appels 0-based).
+        int pageIndex = Math.max(0, page - 1);
+        int pageSize = Math.max(1, size);
+        return ResponseEntity.ok(paymentService.getPayments(PageRequest.of(pageIndex, pageSize), agencyId));
     }
 
     @GetMapping("/{id}")

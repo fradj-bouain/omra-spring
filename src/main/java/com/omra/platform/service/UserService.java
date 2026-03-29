@@ -18,6 +18,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -32,9 +33,15 @@ public class UserService {
     private final ReferralService referralService;
 
     @Transactional(readOnly = true)
-    public PageResponse<UserDto> getUsers(Pageable pageable, UserRole roleFilter) {
+    public PageResponse<UserDto> getUsers(Pageable pageable, UserRole roleFilter, Long agencyIdFilter) {
         Long agencyId = TenantContext.getAgencyId();
         if (TenantContext.isSuperAdmin() && agencyId == null) {
+            if (agencyIdFilter != null) {
+                Page<User> page = roleFilter != null
+                        ? userRepository.findByAgencyIdAndRoleAndDeletedAtIsNull(agencyIdFilter, roleFilter, pageable)
+                        : userRepository.findByAgencyIdAndDeletedAtIsNull(agencyIdFilter, pageable);
+                return toPageResponse(page);
+            }
             Page<User> page = roleFilter != null
                     ? userRepository.findByAgencyIdIsNullAndRoleAndDeletedAtIsNull(roleFilter, pageable)
                     : userRepository.findByAgencyIdIsNullAndDeletedAtIsNull(pageable);
@@ -85,6 +92,48 @@ public class UserService {
                 // Invalid code: we don't fail user creation, just skip referral
             }
         }
+        return userMapper.toDto(user);
+    }
+
+    @Transactional
+    public UserDto update(Long id, UserDto dto) {
+        User user = findByIdAndContext(id);
+        Long ctxAgency = TenantContext.getAgencyId();
+        if (!TenantContext.isSuperAdmin()) {
+            if (ctxAgency == null || !ctxAgency.equals(user.getAgencyId())) {
+                throw new ForbiddenException("Access denied to this user");
+            }
+        }
+        if (dto.getRole() == UserRole.SUPER_ADMIN) {
+            throw new BadRequestException("Le rôle Super admin ne peut pas être attribué via ce formulaire");
+        }
+        if (StringUtils.hasText(dto.getEmail()) && !dto.getEmail().equalsIgnoreCase(user.getEmail())) {
+            userRepository.findByEmailAndDeletedAtIsNull(dto.getEmail()).ifPresent(other -> {
+                if (!other.getId().equals(id)) {
+                    throw new BadRequestException("Email already registered");
+                }
+            });
+            user.setEmail(dto.getEmail());
+        }
+        if (dto.getName() != null) {
+            user.setName(dto.getName());
+        }
+        if (dto.getPhone() != null) {
+            user.setPhone(dto.getPhone());
+        }
+        if (dto.getRole() != null) {
+            user.setRole(dto.getRole());
+        }
+        if (dto.getStatus() != null) {
+            user.setStatus(dto.getStatus());
+        }
+        if (dto.getEmailVerified() != null) {
+            user.setEmailVerified(dto.getEmailVerified());
+        }
+        if (StringUtils.hasText(dto.getPassword())) {
+            user.setPassword(passwordEncoder.encode(dto.getPassword()));
+        }
+        user = userRepository.save(user);
         return userMapper.toDto(user);
     }
 
