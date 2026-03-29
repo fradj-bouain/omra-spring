@@ -79,6 +79,8 @@ public class SecurityConfig {
                 "http://localhost:4200",
                 "http://127.0.0.1:4200",
                 "http://localhost:4201",
+                "https://omra-front-production.up.railway.app",
+                "https://omra-admin-production.up.railway.app",
                 "http://127.0.0.1:4201"
         ));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
