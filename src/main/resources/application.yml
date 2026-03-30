@@ -38,8 +38,8 @@ spring:
 # JWT
 jwt:
   secret: ${JWT_SECRET:your-256-bit-secret-key-for-jwt-signing-must-be-long-enough}
-  access-token-validity: 900
-  refresh-token-validity: 86400
+  access-token-validity: 86400   # 24h
+  refresh-token-validity: 604800 # 7d
 
 # Storage
 # - local (défaut) : dossier local-path, servi via GET /uploads/** (pas besoin de MinIO).
