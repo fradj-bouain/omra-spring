@@ -43,6 +43,10 @@ public class SubscriptionPlan {
     private Integer defaultDurationDays;
     private Integer maxUsers;
 
+    /** Max active sub-agencies under a main agency; {@code null} = unlimited. */
+    @Column(name = "max_sub_agencies")
+    private Integer maxSubAgencies;
+
     @Column(columnDefinition = "TEXT")
     private String features;
 

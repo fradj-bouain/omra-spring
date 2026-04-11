@@ -22,6 +22,8 @@ public class SubscriptionPlanDto {
     private SubscriptionBillingPeriod billingPeriod;
     private Integer defaultDurationDays;
     private Integer maxUsers;
+    /** Max active sub-agencies; {@code null} = unlimited. */
+    private Integer maxSubAgencies;
     private String features;
     private Boolean active;
     private Integer sortOrder;

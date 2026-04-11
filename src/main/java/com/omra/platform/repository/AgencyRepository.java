@@ -11,4 +11,6 @@ public interface AgencyRepository extends JpaRepository<Agency, Long> {
     long countByStatus(AgencyStatus status);
 
     List<Agency> findByParentAgencyId(Long parentAgencyId);
+
+    long countByParentAgencyIdAndStatus(Long parentAgencyId, AgencyStatus status);
 }

@@ -68,6 +68,7 @@ public class SubscriptionPlanService {
                 .billingPeriod(dto.getBillingPeriod())
                 .defaultDurationDays(dto.getDefaultDurationDays())
                 .maxUsers(dto.getMaxUsers())
+                .maxSubAgencies(dto.getMaxSubAgencies())
                 .features(dto.getFeatures())
                 .active(dto.getActive() != null ? dto.getActive() : true)
                 .sortOrder(dto.getSortOrder() != null ? dto.getSortOrder() : 0)
@@ -109,6 +110,9 @@ public class SubscriptionPlanService {
         if (dto.getMaxUsers() != null) {
             e.setMaxUsers(dto.getMaxUsers());
         }
+        if (dto.getMaxSubAgencies() != null) {
+            e.setMaxSubAgencies(dto.getMaxSubAgencies());
+        }
         if (dto.getFeatures() != null) {
             e.setFeatures(dto.getFeatures());
         }
@@ -137,6 +141,7 @@ public class SubscriptionPlanService {
                 .billingPeriod(e.getBillingPeriod())
                 .defaultDurationDays(e.getDefaultDurationDays())
                 .maxUsers(e.getMaxUsers())
+                .maxSubAgencies(e.getMaxSubAgencies())
                 .features(e.getFeatures())
                 .active(e.getActive())
                 .sortOrder(e.getSortOrder())

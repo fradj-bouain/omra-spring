@@ -37,8 +37,18 @@ public class SubscriptionGateService {
                     "Votre agence est suspendue ou désactivée. Contactez l'administrateur de la plateforme.",
                     "AGENCY_SUSPENDED");
         }
+        Long billingAgencyId = agency.getParentAgencyId() != null ? agency.getParentAgencyId() : agencyId;
+        if (agency.getParentAgencyId() != null) {
+            Agency main = agencyRepository.findById(agency.getParentAgencyId())
+                    .orElseThrow(() -> new ForbiddenException("Agence principale introuvable.", "PARENT_AGENCY_MISSING"));
+            if (main.getStatus() != AgencyStatus.ACTIVE) {
+                throw new ForbiddenException(
+                        "L'agence principale est suspendue. Contactez votre administrateur.",
+                        "PARENT_AGENCY_SUSPENDED");
+            }
+        }
         List<AgencySubscription> valid = agencySubscriptionRepository.findValidPaidCovering(
-                agencyId, AgencySubscriptionStatus.ACTIVE, LocalDate.now(), PageRequest.of(0, 1));
+                billingAgencyId, AgencySubscriptionStatus.ACTIVE, LocalDate.now(), PageRequest.of(0, 1));
         if (valid.isEmpty()) {
             throw new ForbiddenException(
                     "Votre abonnement est terminé, expiré ou annulé. Renouvelez-le auprès de l'administrateur de la plateforme pour retrouver l'accès.",
@@ -51,8 +61,13 @@ public class SubscriptionGateService {
         if (agencyId == null) {
             return true;
         }
+        Agency agency = agencyRepository.findById(agencyId).orElse(null);
+        if (agency == null) {
+            return false;
+        }
+        Long billingAgencyId = agency.getParentAgencyId() != null ? agency.getParentAgencyId() : agencyId;
         return !agencySubscriptionRepository
-                .findValidPaidCovering(agencyId, AgencySubscriptionStatus.ACTIVE, LocalDate.now(), PageRequest.of(0, 1))
+                .findValidPaidCovering(billingAgencyId, AgencySubscriptionStatus.ACTIVE, LocalDate.now(), PageRequest.of(0, 1))
                 .isEmpty();
     }
 }

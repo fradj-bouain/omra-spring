@@ -4,6 +4,7 @@ import com.omra.platform.dto.AgencyDto;
 import com.omra.platform.dto.AgencyMetricsDto;
 import com.omra.platform.dto.AgencyThemeDto;
 import com.omra.platform.dto.PageResponse;
+import com.omra.platform.dto.SubAgencyQuotaDto;
 import com.omra.platform.service.AgencyService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -70,6 +71,18 @@ public class AgencyController {
     @Operation(summary = "Create a sub-agency under a main agency (agency admin or super admin)")
     public ResponseEntity<AgencyDto> createSubAgency(@PathVariable Long parentId, @RequestBody AgencyDto dto) {
         return ResponseEntity.ok(agencyService.createSubAgency(parentId, dto));
+    }
+
+    @GetMapping("/{parentId}/sub-agency-quota")
+    @Operation(summary = "Active sub-agency count vs subscription plan limit")
+    public ResponseEntity<SubAgencyQuotaDto> getSubAgencyQuota(@PathVariable Long parentId) {
+        return ResponseEntity.ok(agencyService.getSubAgencyQuota(parentId));
+    }
+
+    @PostMapping("/{parentId}/subs/{subId}/deactivate")
+    @Operation(summary = "Deactivate a sub-agency (main agency admin)")
+    public ResponseEntity<AgencyDto> deactivateSubAgency(@PathVariable Long parentId, @PathVariable Long subId) {
+        return ResponseEntity.ok(agencyService.deactivateSubAgency(parentId, subId));
     }
 
     @PutMapping("/{id}")

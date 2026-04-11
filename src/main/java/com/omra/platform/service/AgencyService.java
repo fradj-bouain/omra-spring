@@ -3,9 +3,13 @@ package com.omra.platform.service;
 import com.omra.platform.dto.AgencyDto;
 import com.omra.platform.dto.AgencyMetricsDto;
 import com.omra.platform.dto.AgencyThemeDto;
+import com.omra.platform.dto.SubAgencyQuotaDto;
 import com.omra.platform.entity.Agency;
+import com.omra.platform.entity.AgencySubscription;
+import com.omra.platform.entity.SubscriptionPlan;
 import com.omra.platform.entity.User;
 import com.omra.platform.entity.enums.AgencyStatus;
+import com.omra.platform.entity.enums.AgencySubscriptionStatus;
 import com.omra.platform.entity.enums.PaymentStatus;
 import com.omra.platform.entity.enums.UserRole;
 import com.omra.platform.entity.enums.UserStatus;
@@ -16,8 +20,10 @@ import com.omra.platform.mapper.AgencyMapper;
 import com.omra.platform.theme.AgencyThemeDefaults;
 import com.omra.platform.theme.HexColorValidator;
 import com.omra.platform.repository.AgencyRepository;
+import com.omra.platform.repository.AgencySubscriptionRepository;
 import com.omra.platform.repository.PaymentRepository;
 import com.omra.platform.repository.PilgrimRepository;
+import com.omra.platform.repository.SubscriptionPlanRepository;
 import com.omra.platform.repository.UmrahGroupRepository;
 import com.omra.platform.repository.UserRepository;
 import com.omra.platform.dto.PageResponse;
@@ -25,11 +31,13 @@ import com.omra.platform.util.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -43,6 +51,8 @@ public class AgencyService {
     private final PilgrimRepository pilgrimRepository;
     private final UmrahGroupRepository umrahGroupRepository;
     private final PaymentRepository paymentRepository;
+    private final AgencySubscriptionRepository agencySubscriptionRepository;
+    private final SubscriptionPlanRepository subscriptionPlanRepository;
     private final PasswordEncoder passwordEncoder;
     private final AgencyMapper agencyMapper;
 
@@ -121,6 +131,7 @@ public class AgencyService {
                 throw new ForbiddenException("Vous ne pouvez créer une sous-agence que pour votre agence principale.");
             }
         }
+        assertSubAgencyQuotaAllowsNew(parentId);
         if (userRepository.existsByEmail(dto.getEmail())) {
             throw new BadRequestException("Email already registered");
         }
@@ -171,6 +182,48 @@ public class AgencyService {
         return agencyRepository.findByParentAgencyId(parentId).stream()
                 .map(agencyMapper::toDto)
                 .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public SubAgencyQuotaDto getSubAgencyQuota(Long parentId) {
+        Agency parent = agencyRepository.findById(parentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Agency", parentId));
+        if (parent.getParentAgencyId() != null) {
+            throw new BadRequestException("Le quota des sous-agences s'applique uniquement à une agence principale.");
+        }
+        if (!TenantContext.canAccessAgencyId(parentId)) {
+            throw new ForbiddenException("Access denied to this agency");
+        }
+        int active = (int) agencyRepository.countByParentAgencyIdAndStatus(parentId, AgencyStatus.ACTIVE);
+        Integer max = resolveMaxSubAgenciesFromPlan(parentId);
+        boolean canCreate = max == null || active < max;
+        return SubAgencyQuotaDto.builder()
+                .activeSubAgencies(active)
+                .maxSubAgencies(max)
+                .canCreate(canCreate)
+                .build();
+    }
+
+    @Transactional
+    public AgencyDto deactivateSubAgency(Long parentId, Long subAgencyId) {
+        Agency sub = agencyRepository.findById(subAgencyId)
+                .orElseThrow(() -> new ResourceNotFoundException("Agency", subAgencyId));
+        if (sub.getParentAgencyId() == null) {
+            throw new BadRequestException("Seules les sous-agences peuvent être désactivées depuis cet écran.");
+        }
+        if (!sub.getParentAgencyId().equals(parentId)) {
+            throw new BadRequestException("Cette sous-agence n'appartient pas à cette agence principale.");
+        }
+        if (!TenantContext.isSuperAdmin()) {
+            if (TenantContext.getUserRole() != UserRole.AGENCY_ADMIN) {
+                throw new ForbiddenException("Seul un administrateur d'agence peut désactiver une sous-agence.");
+            }
+            if (!parentId.equals(TenantContext.getAgencyId())) {
+                throw new ForbiddenException("Vous ne pouvez gérer que les sous-agences de votre agence principale.");
+            }
+        }
+        sub.setStatus(AgencyStatus.SUSPENDED);
+        return agencyMapper.toDto(agencyRepository.save(sub));
     }
 
     @Transactional
@@ -291,5 +344,31 @@ public class AgencyService {
 
     private Agency getAgencyForUpdate(Long id) {
         return getAgencyForRead(id);
+    }
+
+    /**
+     * {@code null} = unlimited; {@code 0} = no valid subscription or plan allows no subs.
+     */
+    private Integer resolveMaxSubAgenciesFromPlan(Long mainAgencyId) {
+        List<AgencySubscription> valid = agencySubscriptionRepository.findValidPaidCovering(
+                mainAgencyId, AgencySubscriptionStatus.ACTIVE, LocalDate.now(), PageRequest.of(0, 1));
+        if (valid.isEmpty()) {
+            return 0;
+        }
+        SubscriptionPlan plan = subscriptionPlanRepository.findById(valid.get(0).getPlanId()).orElse(null);
+        if (plan == null) {
+            return 0;
+        }
+        return plan.getMaxSubAgencies();
+    }
+
+    private void assertSubAgencyQuotaAllowsNew(Long mainAgencyId) {
+        Integer max = resolveMaxSubAgenciesFromPlan(mainAgencyId);
+        long active = agencyRepository.countByParentAgencyIdAndStatus(mainAgencyId, AgencyStatus.ACTIVE);
+        if (max != null && active >= max) {
+            throw new BadRequestException(
+                    "Le nombre de sous-agences actives autorisé par votre abonnement est atteint. "
+                            + "Désactivez une sous-agence ou souscrivez à un forfait avec un quota plus élevé.");
+        }
     }
 }
