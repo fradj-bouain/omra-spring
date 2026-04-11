@@ -29,6 +29,9 @@ public class Agency {
 
     private String phone;
     private String country;
+    /** ISO 4217 (ex. MAD, EUR). */
+    @Column(length = 8)
+    private String currency;
     private String city;
     private String address;
 

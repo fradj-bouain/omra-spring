@@ -1,6 +1,7 @@
 package com.omra.platform.dto;
 
 import com.omra.platform.entity.enums.SponsorType;
+import com.omra.platform.entity.enums.TravelerType;
 import com.omra.platform.entity.enums.VisaStatus;
 import lombok.*;
 
@@ -16,6 +17,9 @@ public class PilgrimDto {
 
     private Long id;
     private Long agencyId;
+    /** Même dossier famille (création groupée). */
+    private Long familyId;
+    private String familyRole;
     private String firstName;
     private String lastName;
     private String gender;
@@ -32,7 +36,10 @@ public class PilgrimDto {
     private VisaStatus visaStatus;
     private Instant createdAt;
 
-    /** Parrainage : type de parrain (pèlerin ou agent), libellé libre, id du pèlerin parrain. */
+    /** Motif / catégorie de voyage. */
+    private TravelerType travelerType;
+
+    /** Parrainage : type de parrain (voyageur ou agent), libellé libre, id du voyageur parrain. */
     private SponsorType sponsorType;
     private String sponsorLabel;
     private Long referrerPilgrimId;

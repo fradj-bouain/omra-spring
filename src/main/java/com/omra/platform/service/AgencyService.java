@@ -74,6 +74,7 @@ public class AgencyService {
                 .email(dto.getEmail())
                 .phone(dto.getPhone())
                 .country(dto.getCountry())
+                .currency(dto.getCurrency())
                 .city(dto.getCity())
                 .address(dto.getAddress())
                 .logoUrl(dto.getLogoUrl())
@@ -109,6 +110,7 @@ public class AgencyService {
         if (dto.getEmail() != null) agency.setEmail(dto.getEmail());
         if (dto.getPhone() != null) agency.setPhone(dto.getPhone());
         if (dto.getCountry() != null) agency.setCountry(dto.getCountry());
+        if (dto.getCurrency() != null) agency.setCurrency(dto.getCurrency());
         if (dto.getCity() != null) agency.setCity(dto.getCity());
         if (dto.getAddress() != null) agency.setAddress(dto.getAddress());
         if (dto.getSubscriptionPlan() != null) agency.setSubscriptionPlan(dto.getSubscriptionPlan());

@@ -19,6 +19,8 @@ public class AgencyDto {
     private String email;
     private String phone;
     private String country;
+    /** ISO 4217 (ex. MAD, EUR). */
+    private String currency;
     private String city;
     private String address;
     private String logoUrl;

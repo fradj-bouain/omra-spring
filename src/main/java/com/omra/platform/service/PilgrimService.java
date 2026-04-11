@@ -1,14 +1,20 @@
 package com.omra.platform.service;
 
+import com.omra.platform.dto.CreatePilgrimFamilyBatchRequestDto;
+import com.omra.platform.dto.CreatePilgrimFamilyBatchResponseDto;
+import com.omra.platform.dto.FamilyMemberPayloadDto;
 import com.omra.platform.dto.PageResponse;
 import com.omra.platform.dto.PilgrimDto;
 import com.omra.platform.dto.PilgrimSearchResultDto;
 import com.omra.platform.entity.Pilgrim;
+import com.omra.platform.entity.PilgrimFamily;
 import com.omra.platform.entity.enums.SponsorType;
+import com.omra.platform.entity.enums.TravelerType;
 import com.omra.platform.entity.enums.VisaStatus;
 import com.omra.platform.exception.BadRequestException;
 import com.omra.platform.exception.ForbiddenException;
 import com.omra.platform.exception.ResourceNotFoundException;
+import com.omra.platform.repository.PilgrimFamilyRepository;
 import com.omra.platform.repository.PilgrimRepository;
 import com.omra.platform.util.TenantContext;
 import lombok.RequiredArgsConstructor;
@@ -19,8 +25,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -28,6 +37,7 @@ import java.util.stream.Collectors;
 public class PilgrimService {
 
     private final PilgrimRepository pilgrimRepository;
+    private final PilgrimFamilyRepository pilgrimFamilyRepository;
     private final NotificationProducerService notificationProducer;
     private final PilgrimSponsorshipService pilgrimSponsorshipService;
 
@@ -84,13 +94,15 @@ public class PilgrimService {
         if (agencyId == null) throw new ForbiddenException("Agency required to create pilgrim");
         if (dto.getPassportNumber() != null && !dto.getPassportNumber().isBlank()
                 && pilgrimRepository.existsByAgencyIdAndPassportNumberAndDeletedAtIsNull(agencyId, dto.getPassportNumber().trim())) {
-            throw new BadRequestException("Un pèlerin avec ce numéro de passeport existe déjà pour cette agence.");
+            throw new BadRequestException("Un voyageur avec ce numéro de passeport existe déjà pour cette agence.");
         }
         if (dto.getSponsorType() == SponsorType.PILGRIM && dto.getReferrerPilgrimId() == null) {
-            throw new BadRequestException("Pour un parrain de type Pèlerin, sélectionnez le pèlerin parrain dans la liste.");
+            throw new BadRequestException("Pour un parrain de type voyageur, sélectionnez le voyageur parrain dans la liste.");
         }
         Pilgrim pilgrim = Pilgrim.builder()
                 .agencyId(agencyId)
+                .familyId(null)
+                .familyRole(null)
                 .firstName(dto.getFirstName())
                 .lastName(dto.getLastName())
                 .gender(dto.getGender())
@@ -105,6 +117,7 @@ public class PilgrimService {
                 .photoUrl(dto.getPhotoUrl())
                 .passportScanUrl(dto.getPassportScanUrl())
                 .visaStatus(dto.getVisaStatus() != null ? dto.getVisaStatus() : VisaStatus.PENDING)
+                .travelerType(dto.getTravelerType() != null ? dto.getTravelerType() : TravelerType.PILGRIM)
                 .sponsorType(dto.getSponsorType())
                 .sponsorLabel(trimOrNull(dto.getSponsorLabel()))
                 .referrerPilgrimId(dto.getSponsorType() == SponsorType.PILGRIM ? dto.getReferrerPilgrimId() : null)
@@ -115,12 +128,106 @@ public class PilgrimService {
         return toDtoWithEnrichment(pilgrim);
     }
 
+    /**
+     * Crée une entrée {@code pilgrim_families} et plusieurs pèlerins liés (même {@code family_id}),
+     * en une transaction. Utilisé par le flux « famille » du front.
+     */
+    @Transactional
+    public CreatePilgrimFamilyBatchResponseDto createFamilyBatch(CreatePilgrimFamilyBatchRequestDto req) {
+        Long agencyId = requireAgencyId();
+        if (agencyId == null) {
+            throw new ForbiddenException("Agency required to create pilgrims");
+        }
+        List<FamilyMemberPayloadDto> members = req.getMembers();
+        if (members == null || members.size() < 2) {
+            throw new BadRequestException("Au moins 2 membres sont requis pour une famille.");
+        }
+        if (req.getSponsorType() == SponsorType.PILGRIM && req.getReferrerPilgrimId() == null) {
+            throw new BadRequestException("Pour un parrain de type voyageur, sélectionnez le voyageur parrain dans la liste.");
+        }
+
+        Set<String> seenPassports = new HashSet<>();
+        for (FamilyMemberPayloadDto m : members) {
+            String raw = m.getPassportNumber();
+            if (raw == null || raw.isBlank()) {
+                continue;
+            }
+            String p = raw.trim();
+            if (!seenPassports.add(p)) {
+                throw new BadRequestException("Numéro de pièce d’identité dupliqué dans la liste des membres.");
+            }
+            if (pilgrimRepository.existsByAgencyIdAndPassportNumberAndDeletedAtIsNull(agencyId, p)) {
+                throw new BadRequestException("Un voyageur avec ce numéro de passeport existe déjà pour cette agence.");
+            }
+        }
+
+        TravelerType travelerType = req.getTravelerType() != null ? req.getTravelerType() : TravelerType.PILGRIM;
+
+        PilgrimFamily family = pilgrimFamilyRepository.save(PilgrimFamily.builder()
+                .agencyId(agencyId)
+                .build());
+
+        VisaStatus visa = req.getVisaStatus() != null ? req.getVisaStatus() : VisaStatus.PENDING;
+        List<PilgrimDto> createdDtos = new ArrayList<>();
+
+        for (FamilyMemberPayloadDto m : members) {
+            String mergedAddress = mergeDocumentNotesToAddress(req.getAddress(), m.getDocumentNotes());
+            Pilgrim pilgrim = Pilgrim.builder()
+                    .agencyId(agencyId)
+                    .familyId(family.getId())
+                    .familyRole(trimOrNull(m.getFamilyRole()))
+                    .firstName(m.getFirstName().trim())
+                    .lastName(m.getLastName().trim())
+                    .gender(trimOrNull(m.getGender()))
+                    .dateOfBirth(m.getDateOfBirth())
+                    .passportNumber(trimOrNull(m.getPassportNumber()))
+                    .nationality(trimOrNull(req.getNationality()))
+                    .phone(trimOrNull(req.getPhone()))
+                    .email(trimOrNull(req.getEmail()))
+                    .address(mergedAddress)
+                    .visaStatus(visa)
+                    .travelerType(travelerType)
+                    .sponsorType(req.getSponsorType())
+                    .sponsorLabel(trimOrNull(req.getSponsorLabel()))
+                    .referrerPilgrimId(req.getSponsorType() == SponsorType.PILGRIM ? req.getReferrerPilgrimId() : null)
+                    .referralPoints(0)
+                    .build();
+            pilgrim = pilgrimRepository.save(pilgrim);
+
+            PilgrimDto forSponsor = PilgrimDto.builder()
+                    .sponsorType(req.getSponsorType())
+                    .referrerPilgrimId(req.getSponsorType() == SponsorType.PILGRIM ? req.getReferrerPilgrimId() : null)
+                    .build();
+            pilgrimSponsorshipService.afterPilgrimCreated(pilgrim, forSponsor);
+
+            createdDtos.add(toDtoWithEnrichment(pilgrim));
+        }
+
+        return CreatePilgrimFamilyBatchResponseDto.builder()
+                .familyId(family.getId())
+                .pilgrims(createdDtos)
+                .build();
+    }
+
+    private static String mergeDocumentNotesToAddress(String baseAddress, String documentNotes) {
+        String notes = trimOrNull(documentNotes);
+        if (notes == null) {
+            return trimOrNull(baseAddress);
+        }
+        String line = "Réf. documents : " + notes;
+        String base = trimOrNull(baseAddress);
+        if (base == null) {
+            return line;
+        }
+        return base + "\n" + line;
+    }
+
     @Transactional
     public PilgrimDto update(Long id, PilgrimDto dto) {
         Pilgrim pilgrim = findByIdAndAgency(id);
         if (dto.getPassportNumber() != null && !dto.getPassportNumber().isBlank()
                 && pilgrimRepository.existsByAgencyIdAndPassportNumberAndDeletedAtIsNullAndIdNot(pilgrim.getAgencyId(), dto.getPassportNumber().trim(), id)) {
-            throw new BadRequestException("Un pèlerin avec ce numéro de passeport existe déjà pour cette agence.");
+            throw new BadRequestException("Un voyageur avec ce numéro de passeport existe déjà pour cette agence.");
         }
         if (dto.getFirstName() != null) pilgrim.setFirstName(dto.getFirstName());
         if (dto.getLastName() != null) pilgrim.setLastName(dto.getLastName());
@@ -137,6 +244,7 @@ public class PilgrimService {
         if (dto.getPassportScanUrl() != null) pilgrim.setPassportScanUrl(dto.getPassportScanUrl());
         VisaStatus oldVisa = pilgrim.getVisaStatus();
         if (dto.getVisaStatus() != null) pilgrim.setVisaStatus(dto.getVisaStatus());
+        if (dto.getTravelerType() != null) pilgrim.setTravelerType(dto.getTravelerType());
         pilgrim = pilgrimRepository.save(pilgrim);
         if (dto.getVisaStatus() != null && dto.getVisaStatus() != oldVisa) {
             String name = pilgrim.getFirstName() + " " + pilgrim.getLastName();
@@ -188,6 +296,8 @@ public class PilgrimService {
         return PilgrimDto.builder()
                 .id(e.getId())
                 .agencyId(e.getAgencyId())
+                .familyId(e.getFamilyId())
+                .familyRole(e.getFamilyRole())
                 .firstName(e.getFirstName())
                 .lastName(e.getLastName())
                 .gender(e.getGender())
@@ -202,6 +312,7 @@ public class PilgrimService {
                 .photoUrl(e.getPhotoUrl())
                 .passportScanUrl(e.getPassportScanUrl())
                 .visaStatus(e.getVisaStatus())
+                .travelerType(e.getTravelerType())
                 .createdAt(e.getCreatedAt())
                 .sponsorType(e.getSponsorType())
                 .sponsorLabel(e.getSponsorLabel())

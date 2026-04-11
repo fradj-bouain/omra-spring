@@ -1,6 +1,7 @@
 package com.omra.platform.entity;
 
 import com.omra.platform.entity.enums.SponsorType;
+import com.omra.platform.entity.enums.TravelerType;
 import com.omra.platform.entity.enums.VisaStatus;
 import jakarta.persistence.*;
 import lombok.*;
@@ -52,7 +53,13 @@ public class Pilgrim {
     @Enumerated(EnumType.STRING)
     private VisaStatus visaStatus;
 
-    /** Parrainage : type (autre pèlerin vs agent), libellé libre, référence pèlerin parrain. */
+    /** Motif / catégorie de voyage (pèlerinage, loisirs, travail…). */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "traveler_type", nullable = false, length = 32)
+    @Builder.Default
+    private TravelerType travelerType = TravelerType.PILGRIM;
+
+    /** Parrainage : type (autre voyageur vs agent), libellé libre, référence voyageur parrain. */
     @Enumerated(EnumType.STRING)
     @Column(name = "sponsor_type")
     private SponsorType sponsorType;
@@ -62,6 +69,14 @@ public class Pilgrim {
 
     @Column(name = "referrer_pilgrim_id")
     private Long referrerPilgrimId;
+
+    /** Regroupement famille (création batch) — {@code pilgrim_families.id}. */
+    @Column(name = "family_id")
+    private Long familyId;
+
+    /** PERE, MERE, ENFANT, AUTRE (optionnel). */
+    @Column(name = "family_role", length = 20)
+    private String familyRole;
 
     /** Points cumulés en tant que parrain (invitations enregistrées). */
     @Column(name = "referral_points", nullable = false)

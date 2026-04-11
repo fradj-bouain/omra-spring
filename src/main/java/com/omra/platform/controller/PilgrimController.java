@@ -1,11 +1,14 @@
 package com.omra.platform.controller;
 
+import com.omra.platform.dto.CreatePilgrimFamilyBatchRequestDto;
+import com.omra.platform.dto.CreatePilgrimFamilyBatchResponseDto;
 import com.omra.platform.dto.PageResponse;
 import com.omra.platform.dto.PilgrimDto;
 import com.omra.platform.dto.PilgrimSearchResultDto;
 import com.omra.platform.service.PilgrimService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
@@ -47,6 +50,13 @@ public class PilgrimController {
     @Operation(summary = "Create pilgrim")
     public ResponseEntity<PilgrimDto> create(@RequestBody PilgrimDto dto) {
         return ResponseEntity.ok(pilgrimService.create(dto));
+    }
+
+    @PostMapping("/family-batch")
+    @Operation(summary = "Créer une famille (≥2 pèlerins) : enregistrement groupe + liens family_id")
+    public ResponseEntity<CreatePilgrimFamilyBatchResponseDto> createFamilyBatch(
+            @Valid @RequestBody CreatePilgrimFamilyBatchRequestDto body) {
+        return ResponseEntity.ok(pilgrimService.createFamilyBatch(body));
     }
 
     @PutMapping("/{id}")

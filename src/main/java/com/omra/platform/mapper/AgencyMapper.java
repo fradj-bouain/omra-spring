@@ -16,6 +16,7 @@ public class AgencyMapper {
                 .email(entity.getEmail())
                 .phone(entity.getPhone())
                 .country(entity.getCountry())
+                .currency(entity.getCurrency())
                 .city(entity.getCity())
                 .address(entity.getAddress())
                 .logoUrl(entity.getLogoUrl())
