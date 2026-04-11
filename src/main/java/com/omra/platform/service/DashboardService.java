@@ -26,6 +26,7 @@ import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
@@ -66,13 +67,15 @@ public class DashboardService {
                     .build();
         }
 
-        long totalPilgrims = pilgrimRepository.findByAgencyIdAndDeletedAtIsNull(agencyId, PageRequest.of(0, 1)).getTotalElements();
-        long activeGroups = groupRepository.findByAgencyIdAndDeletedAtIsNull(agencyId, PageRequest.of(0, 1)).getTotalElements();
-        long pendingVisas = pilgrimRepository.findByAgencyIdAndDeletedAtIsNull(agencyId, PageRequest.of(0, Integer.MAX_VALUE))
-                .getContent().stream()
-                .filter(p -> p.getVisaStatus() == VisaStatus.PENDING || p.getVisaStatus() == VisaStatus.SUBMITTED)
-                .count();
-        BigDecimal paymentsReceived = paymentRepository.sumAmountByAgencyIdAndStatus(agencyId, PaymentStatus.PAID);
+        List<Long> scoped = Objects.requireNonNullElse(TenantContext.getScopedAgencyIdsForQueries(), List.of());
+        if (scoped.isEmpty()) {
+            throw new ForbiddenException("Agency context required");
+        }
+        long totalPilgrims = pilgrimRepository.countByAgencyIdInAndDeletedAtIsNull(scoped);
+        long activeGroups = groupRepository.countByAgencyIdInAndDeletedAtIsNull(scoped);
+        long pendingVisas = pilgrimRepository.countByAgencyIdInAndDeletedAtIsNullAndVisaStatusIn(
+                scoped, EnumSet.of(VisaStatus.PENDING, VisaStatus.SUBMITTED));
+        BigDecimal paymentsReceived = paymentRepository.sumAmountByAgencyIdInAndStatus(scoped, PaymentStatus.PAID);
         BigDecimal totalRevenue = paymentsReceived != null ? paymentsReceived : BigDecimal.ZERO;
 
         return DashboardStatsDto.builder()
@@ -98,7 +101,13 @@ public class DashboardService {
         if (TenantContext.isSuperAdmin() && agencyId == null) {
             return List.of();
         }
-        List<UmrahGroup> groups = groupRepository.findByAgencyIdAndDeletedAtIsNull(agencyId, PageRequest.of(0, 500)).getContent();
+        List<Long> scoped = Objects.requireNonNullElse(TenantContext.getScopedAgencyIdsForQueries(), List.of());
+        if (scoped.isEmpty()) {
+            throw new ForbiddenException("Agency context required");
+        }
+        List<UmrahGroup> groups = scoped.size() == 1
+                ? groupRepository.findByAgencyIdAndDeletedAtIsNull(scoped.get(0), PageRequest.of(0, 500)).getContent()
+                : groupRepository.findByAgencyIdInAndDeletedAtIsNull(scoped, PageRequest.of(0, 500)).getContent();
         List<DashboardGroupKpiDto> result = new ArrayList<>();
         for (UmrahGroup g : groups) {
             int filled = (int) groupPilgrimRepository.countByGroupId(g.getId());
@@ -153,8 +162,15 @@ public class DashboardService {
         }
         LocalDate end = LocalDate.now();
         LocalDate start = end.minusMonths(12);
-        List<com.omra.platform.entity.Payment> payments = paymentRepository.findByAgencyIdAndStatusAndDeletedAtIsNullAndPaymentDateBetween(
-                agencyId, PaymentStatus.PAID, start, end);
+        List<Long> scoped = Objects.requireNonNullElse(TenantContext.getScopedAgencyIdsForQueries(), List.of());
+        if (scoped.isEmpty()) {
+            throw new ForbiddenException("Agency context required");
+        }
+        List<com.omra.platform.entity.Payment> payments = scoped.size() == 1
+                ? paymentRepository.findByAgencyIdAndStatusAndDeletedAtIsNullAndPaymentDateBetween(
+                        scoped.get(0), PaymentStatus.PAID, start, end)
+                : paymentRepository.findByAgencyIdInAndStatusAndDeletedAtIsNullAndPaymentDateBetween(
+                        scoped, PaymentStatus.PAID, start, end);
         Map<String, BigDecimal> byPeriod = payments.stream()
                 .filter(p -> p.getPaymentDate() != null)
                 .collect(Collectors.groupingBy(
@@ -164,7 +180,9 @@ public class DashboardService {
                 .sorted(Map.Entry.comparingByKey())
                 .map(e -> new DashboardChartDto.PeriodAmountDto(e.getKey(), e.getValue()))
                 .toList();
-        List<com.omra.platform.entity.Pilgrim> pilgrims = pilgrimRepository.findByAgencyIdAndDeletedAtIsNull(agencyId, PageRequest.of(0, Integer.MAX_VALUE)).getContent();
+        List<com.omra.platform.entity.Pilgrim> pilgrims = scoped.size() == 1
+                ? pilgrimRepository.findByAgencyIdAndDeletedAtIsNull(scoped.get(0), PageRequest.of(0, Integer.MAX_VALUE)).getContent()
+                : pilgrimRepository.findByAgencyIdInAndDeletedAtIsNull(scoped, PageRequest.of(0, Integer.MAX_VALUE)).getContent();
         Map<VisaStatus, Long> visaCounts = pilgrims.stream().collect(Collectors.groupingBy(p -> p.getVisaStatus() != null ? p.getVisaStatus() : VisaStatus.PENDING, Collectors.counting()));
         List<DashboardChartDto.StatusCountDto> visaDistribution = visaCounts.entrySet().stream()
                 .map(e -> new DashboardChartDto.StatusCountDto(e.getKey().name(), e.getValue()))

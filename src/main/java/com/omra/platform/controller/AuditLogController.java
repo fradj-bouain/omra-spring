@@ -36,16 +36,22 @@ public class AuditLogController {
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size) {
 
-        Long effectiveAgencyId = null;
+        java.util.List<Long> agencyScope = null;
         if (UserRole.SUPER_ADMIN != TenantContext.getUserRole()) {
-            effectiveAgencyId = TenantContext.getAgencyId();
+            agencyScope = TenantContext.getAccessibleAgencyIds();
+            if (agencyScope == null || agencyScope.isEmpty()) {
+                Long aid = TenantContext.getAgencyId();
+                if (aid != null) {
+                    agencyScope = java.util.List.of(aid);
+                }
+            }
         } else if (agencyId != null) {
-            effectiveAgencyId = agencyId;
+            agencyScope = java.util.List.of(agencyId);
         }
 
         Pageable pageable = PageRequest.of(Math.max(0, page - 1), Math.min(100, Math.max(1, size)));
         Page<AuditLog> result = auditLogService.findFiltered(
-                userId, actionType, entityType, startDate, endDate, effectiveAgencyId, pageable);
+                userId, actionType, entityType, startDate, endDate, agencyScope, pageable);
 
         List<AuditLogResponse> content = result.getContent().stream()
                 .map(this::toResponse)
@@ -67,7 +73,7 @@ public class AuditLogController {
     public ResponseEntity<AuditLogResponse> getAuditLogById(@PathVariable Long id) {
         return auditLogService.findById(id)
                 .filter(log -> TenantContext.getUserRole() == UserRole.SUPER_ADMIN
-                        || (log.getAgencyId() != null && log.getAgencyId().equals(TenantContext.getAgencyId())))
+                        || (log.getAgencyId() != null && TenantContext.canAccessAgencyId(log.getAgencyId())))
                 .map(this::toDetailResponse)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());

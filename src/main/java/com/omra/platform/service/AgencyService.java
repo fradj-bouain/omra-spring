@@ -103,6 +103,76 @@ public class AgencyService {
         return agencyMapper.toDto(agency);
     }
 
+    /**
+     * Creates a sub-agency under a main (root) agency. {@link AgencyDto#getEmail()} must be unique.
+     */
+    @Transactional
+    public AgencyDto createSubAgency(Long parentId, AgencyDto dto) {
+        Agency parent = agencyRepository.findById(parentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Agency", parentId));
+        if (parent.getParentAgencyId() != null) {
+            throw new BadRequestException("Les sous-agences ne peuvent pas avoir de sous-agences.");
+        }
+        if (!TenantContext.isSuperAdmin()) {
+            if (TenantContext.getUserRole() != UserRole.AGENCY_ADMIN) {
+                throw new ForbiddenException("Seul un administrateur d'agence peut créer une sous-agence.");
+            }
+            if (!parentId.equals(TenantContext.getAgencyId())) {
+                throw new ForbiddenException("Vous ne pouvez créer une sous-agence que pour votre agence principale.");
+            }
+        }
+        if (userRepository.existsByEmail(dto.getEmail())) {
+            throw new BadRequestException("Email already registered");
+        }
+        Agency agency = Agency.builder()
+                .name(dto.getName())
+                .email(dto.getEmail())
+                .phone(dto.getPhone())
+                .country(dto.getCountry())
+                .currency(dto.getCurrency())
+                .city(dto.getCity())
+                .address(dto.getAddress())
+                .logoUrl(dto.getLogoUrl())
+                .faviconUrl(dto.getFaviconUrl())
+                .subscriptionPlan(dto.getSubscriptionPlan())
+                .subscriptionStartDate(dto.getSubscriptionStartDate())
+                .subscriptionEndDate(dto.getSubscriptionEndDate())
+                .status(dto.getStatus() != null ? dto.getStatus() : AgencyStatus.ACTIVE)
+                .parentAgencyId(parentId)
+                .build();
+        AgencyThemeDefaults.applyThemeOnCreate(agency, dto);
+        agency = agencyRepository.save(agency);
+
+        if (!userRepository.existsByEmail(agency.getEmail())) {
+            User defaultAdmin = User.builder()
+                    .agencyId(agency.getId())
+                    .name("admin")
+                    .email(agency.getEmail())
+                    .password(passwordEncoder.encode("000000"))
+                    .role(UserRole.AGENCY_ADMIN)
+                    .status(UserStatus.ACTIVE)
+                    .build();
+            userRepository.save(defaultAdmin);
+        }
+
+        return agencyMapper.toDto(agency);
+    }
+
+    @Transactional(readOnly = true)
+    public List<AgencyDto> listSubAgencies(Long parentId) {
+        Agency parent = agencyRepository.findById(parentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Agency", parentId));
+        if (parent.getParentAgencyId() != null) {
+            throw new BadRequestException("Le parent doit être une agence principale.");
+        }
+        if (!TenantContext.canAccessAgencyId(parentId)) {
+            throw new ForbiddenException("Access denied to this agency");
+        }
+        return agencyRepository.findByParentAgencyId(parentId).stream()
+                .map(agencyMapper::toDto)
+                .collect(Collectors.toList());
+    }
+
     @Transactional
     public AgencyDto update(Long id, AgencyDto dto) {
         Agency agency = getAgencyForUpdate(id);
@@ -212,8 +282,7 @@ public class AgencyService {
             return agencyRepository.findById(id)
                     .orElseThrow(() -> new ResourceNotFoundException("Agency", id));
         }
-        Long agencyId = TenantContext.getAgencyId();
-        if (agencyId == null || !agencyId.equals(id)) {
+        if (!TenantContext.canAccessAgencyId(id)) {
             throw new ForbiddenException("Access denied to this agency");
         }
         return agencyRepository.findById(id)

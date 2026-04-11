@@ -83,7 +83,7 @@ public class AuditLogService {
 
     public Page<AuditLog> findFiltered(Long userId, String actionType, String entityType,
                                         LocalDateTime startDate, LocalDateTime endDate,
-                                        Long agencyIdFilter, Pageable pageable) {
+                                        List<Long> agencyIdsFilter, Pageable pageable) {
         Specification<AuditLog> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
             if (userId != null) {
@@ -101,8 +101,8 @@ public class AuditLogService {
             if (endDate != null) {
                 predicates.add(cb.lessThanOrEqualTo(root.get("createdAt"), endDate));
             }
-            if (agencyIdFilter != null) {
-                predicates.add(cb.equal(root.get("agencyId"), agencyIdFilter));
+            if (agencyIdsFilter != null && !agencyIdsFilter.isEmpty()) {
+                predicates.add(root.get("agencyId").in(agencyIdsFilter));
             }
             return cb.and(predicates.toArray(new Predicate[0]));
         };

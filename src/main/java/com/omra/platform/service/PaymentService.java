@@ -27,6 +27,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
@@ -54,11 +55,14 @@ public class PaymentService {
                 page = paymentRepository.findByDeletedAtIsNull(pageable);
             }
         } else {
-            Long agencyId = requireAgencyId();
-            if (agencyId == null) {
+            requireAgencyId();
+            List<Long> scoped = Objects.requireNonNullElse(TenantContext.getScopedAgencyIdsForQueries(), List.of());
+            if (scoped.isEmpty()) {
                 throw new ForbiddenException("Agency context required");
             }
-            page = paymentRepository.findByAgencyIdAndDeletedAtIsNull(agencyId, pageable);
+            page = scoped.size() == 1
+                    ? paymentRepository.findByAgencyIdAndDeletedAtIsNull(scoped.get(0), pageable)
+                    : paymentRepository.findByAgencyIdInAndDeletedAtIsNull(scoped, pageable);
         }
         return toPageResponse(page);
     }
@@ -166,8 +170,7 @@ public class PaymentService {
 
     private Payment findByIdAndAgency(Long id) {
         Payment payment = paymentRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Payment", id));
-        Long agencyId = TenantContext.getAgencyId();
-        if (!TenantContext.isSuperAdmin() && (agencyId == null || !agencyId.equals(payment.getAgencyId()))) {
+        if (!TenantContext.isSuperAdmin() && !TenantContext.canAccessAgencyId(payment.getAgencyId())) {
             throw new ForbiddenException("Access denied");
         }
         if (payment.getDeletedAt() != null) throw new ResourceNotFoundException("Payment", id);

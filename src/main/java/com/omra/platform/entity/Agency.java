@@ -60,6 +60,10 @@ public class Agency {
     @Column(nullable = false)
     private AgencyStatus status;
 
+    /** If set, this agency is a sub-agency of the given main (root) agency. Roots have {@code null}. */
+    @Column(name = "parent_agency_id")
+    private Long parentAgencyId;
+
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
 

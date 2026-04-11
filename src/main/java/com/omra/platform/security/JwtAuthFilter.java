@@ -1,5 +1,6 @@
 package com.omra.platform.security;
 
+import com.omra.platform.service.AgencyScopeService;
 import com.omra.platform.util.TenantContext;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -34,6 +35,7 @@ public class JwtAuthFilter extends OncePerRequestFilter implements Ordered {
     private static final String BEARER_PREFIX = "Bearer ";
 
     private final JwtService jwtService;
+    private final AgencyScopeService agencyScopeService;
 
     @Override
     protected void doFilterInternal(
@@ -50,6 +52,7 @@ public class JwtAuthFilter extends OncePerRequestFilter implements Ordered {
                 if (claims.admin() && claims.adminId() != null) {
                     TenantContext.setAdminId(claims.adminId());
                 }
+                agencyScopeService.resolveAndApply(claims.agencyId());
 
                 List<SimpleGrantedAuthority> authorities = List.of(
                         new SimpleGrantedAuthority("ROLE_" + claims.role().name())

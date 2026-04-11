@@ -38,5 +38,7 @@ public class AgencyDto {
     private LocalDate subscriptionStartDate;
     private LocalDate subscriptionEndDate;
     private AgencyStatus status;
+    /** Parent main agency when this row is a sub-agency; {@code null} for roots. */
+    private Long parentAgencyId;
     private Instant createdAt;
 }

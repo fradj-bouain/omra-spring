@@ -60,7 +60,13 @@ public class UmrahGroupService {
             Page<UmrahGroup> page = groupRepository.findByDeletedAtIsNull(pageable);
             return toPageResponse(page);
         }
-        Page<UmrahGroup> page = groupRepository.findByAgencyIdAndDeletedAtIsNull(agencyId, pageable);
+        List<Long> scoped = Objects.requireNonNullElse(TenantContext.getScopedAgencyIdsForQueries(), List.of());
+        if (scoped.isEmpty()) {
+            throw new ForbiddenException("Agency context required");
+        }
+        Page<UmrahGroup> page = scoped.size() == 1
+                ? groupRepository.findByAgencyIdAndDeletedAtIsNull(scoped.get(0), pageable)
+                : groupRepository.findByAgencyIdInAndDeletedAtIsNull(scoped, pageable);
         return toPageResponse(page);
     }
 
@@ -170,8 +176,7 @@ public class UmrahGroupService {
     private UmrahGroup findByIdAndAgency(Long id) {
         UmrahGroup group = groupRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Group", id));
-        Long agencyId = TenantContext.getAgencyId();
-        if (!TenantContext.isSuperAdmin() && (agencyId == null || !agencyId.equals(group.getAgencyId()))) {
+        if (!TenantContext.isSuperAdmin() && !TenantContext.canAccessAgencyId(group.getAgencyId())) {
             throw new ForbiddenException("Access denied to this group");
         }
         if (group.getDeletedAt() != null) throw new ResourceNotFoundException("Group", id);

@@ -30,6 +30,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
@@ -56,7 +57,13 @@ public class PilgrimService {
             Page<Pilgrim> page = pilgrimRepository.findByDeletedAtIsNull(pageable);
             return toPageResponse(page);
         }
-        Page<Pilgrim> page = pilgrimRepository.findByAgencyIdAndDeletedAtIsNull(agencyId, pageable);
+        List<Long> scoped = Objects.requireNonNullElse(TenantContext.getScopedAgencyIdsForQueries(), List.of());
+        if (scoped.isEmpty()) {
+            throw new ForbiddenException("Agency context required");
+        }
+        Page<Pilgrim> page = scoped.size() == 1
+                ? pilgrimRepository.findByAgencyIdAndDeletedAtIsNull(scoped.get(0), pageable)
+                : pilgrimRepository.findByAgencyIdInAndDeletedAtIsNull(scoped, pageable);
         return toPageResponse(page);
     }
 
@@ -78,7 +85,14 @@ public class PilgrimService {
         }
         int lim = Math.min(Math.max(limit, 1), 50);
         Pageable pageable = PageRequest.of(0, lim);
-        return pilgrimRepository.searchForAutocomplete(agencyId, q.trim(), pageable).stream()
+        List<Long> scoped = Objects.requireNonNullElse(TenantContext.getScopedAgencyIdsForQueries(), List.of());
+        if (scoped.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<Pilgrim> found = scoped.size() == 1
+                ? pilgrimRepository.searchForAutocomplete(scoped.get(0), q.trim(), pageable)
+                : pilgrimRepository.searchForAutocomplete(scoped, q.trim(), pageable);
+        return found.stream()
                 .map(p -> PilgrimSearchResultDto.builder()
                         .id(p.getId())
                         .firstName(p.getFirstName())
@@ -269,8 +283,7 @@ public class PilgrimService {
     private Pilgrim findByIdAndAgency(Long id) {
         Pilgrim pilgrim = pilgrimRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Pilgrim", id));
-        Long agencyId = TenantContext.getAgencyId();
-        if (!TenantContext.isSuperAdmin() && (agencyId == null || !agencyId.equals(pilgrim.getAgencyId()))) {
+        if (!TenantContext.isSuperAdmin() && !TenantContext.canAccessAgencyId(pilgrim.getAgencyId())) {
             throw new ForbiddenException("Access denied to this pilgrim");
         }
         if (pilgrim.getDeletedAt() != null) {

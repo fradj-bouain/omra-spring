@@ -7,6 +7,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.Collection;
 import java.util.Optional;
 
 public interface UserRepository extends JpaRepository<User, Long> {
@@ -19,7 +20,11 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     Page<User> findByAgencyIdAndDeletedAtIsNull(Long agencyId, Pageable pageable);
 
+    Page<User> findByAgencyIdInAndDeletedAtIsNull(Collection<Long> agencyIds, Pageable pageable);
+
     Page<User> findByAgencyIdAndRoleAndDeletedAtIsNull(Long agencyId, UserRole role, Pageable pageable);
+
+    Page<User> findByAgencyIdInAndRoleAndDeletedAtIsNull(Collection<Long> agencyIds, UserRole role, Pageable pageable);
 
     Page<User> findByAgencyIdIsNullAndDeletedAtIsNull(Pageable pageable);
 
@@ -32,6 +37,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
     boolean existsByReferralCode(String referralCode);
 
     long countByAgencyIdAndDeletedAtIsNull(Long agencyId);
+
+    long countByAgencyIdInAndDeletedAtIsNull(Collection<Long> agencyIds);
 
     long countByAgencyIdIsNotNullAndDeletedAtIsNull();
 }

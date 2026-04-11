@@ -18,11 +18,17 @@ public interface PilgrimRepository extends JpaRepository<Pilgrim, Long> {
 
     Page<Pilgrim> findByAgencyIdAndDeletedAtIsNull(Long agencyId, Pageable pageable);
 
+    Page<Pilgrim> findByAgencyIdInAndDeletedAtIsNull(Collection<Long> agencyIds, Pageable pageable);
+
     Page<Pilgrim> findByDeletedAtIsNull(Pageable pageable);
 
     long countByDeletedAtIsNull();
 
     long countByAgencyIdAndDeletedAtIsNull(Long agencyId);
+
+    long countByAgencyIdInAndDeletedAtIsNull(Collection<Long> agencyIds);
+
+    long countByAgencyIdInAndDeletedAtIsNullAndVisaStatusIn(Collection<Long> agencyIds, Collection<VisaStatus> statuses);
 
     long countByDeletedAtIsNullAndVisaStatusIn(Collection<VisaStatus> statuses);
 
@@ -36,4 +42,11 @@ public interface PilgrimRepository extends JpaRepository<Pilgrim, Long> {
             + "(p.passportNumber IS NOT NULL AND LOWER(p.passportNumber) LIKE LOWER(CONCAT('%', :q, '%')))) "
             + "ORDER BY p.lastName ASC, p.firstName ASC")
     List<Pilgrim> searchForAutocomplete(@Param("agencyId") Long agencyId, @Param("q") String q, Pageable pageable);
+
+    @Query("SELECT p FROM Pilgrim p WHERE p.agencyId IN :agencyIds AND p.deletedAt IS NULL AND "
+            + "(LOWER(CONCAT(p.firstName, ' ', p.lastName)) LIKE LOWER(CONCAT('%', :q, '%')) OR "
+            + "LOWER(p.firstName) LIKE LOWER(CONCAT('%', :q, '%')) OR LOWER(p.lastName) LIKE LOWER(CONCAT('%', :q, '%')) OR "
+            + "(p.passportNumber IS NOT NULL AND LOWER(p.passportNumber) LIKE LOWER(CONCAT('%', :q, '%')))) "
+            + "ORDER BY p.lastName ASC, p.firstName ASC")
+    List<Pilgrim> searchForAutocomplete(@Param("agencyIds") Collection<Long> agencyIds, @Param("q") String q, Pageable pageable);
 }

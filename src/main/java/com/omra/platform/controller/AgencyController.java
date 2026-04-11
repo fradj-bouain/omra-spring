@@ -12,6 +12,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/agencies")
 @RequiredArgsConstructor
@@ -56,6 +58,18 @@ public class AgencyController {
     @Operation(summary = "Create agency (Super Admin)")
     public ResponseEntity<AgencyDto> create(@RequestBody AgencyDto dto) {
         return ResponseEntity.ok(agencyService.create(dto));
+    }
+
+    @GetMapping("/{parentId}/subs")
+    @Operation(summary = "List direct sub-agencies of a main agency")
+    public ResponseEntity<List<AgencyDto>> listSubAgencies(@PathVariable Long parentId) {
+        return ResponseEntity.ok(agencyService.listSubAgencies(parentId));
+    }
+
+    @PostMapping("/{parentId}/subs")
+    @Operation(summary = "Create a sub-agency under a main agency (agency admin or super admin)")
+    public ResponseEntity<AgencyDto> createSubAgency(@PathVariable Long parentId, @RequestBody AgencyDto dto) {
+        return ResponseEntity.ok(agencyService.createSubAgency(parentId, dto));
     }
 
     @PutMapping("/{id}")

@@ -21,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
@@ -48,9 +49,13 @@ public class UserService {
             return toPageResponse(page);
         }
         if (agencyId == null) throw new ForbiddenException("Agency context required");
+        List<Long> scoped = Objects.requireNonNullElse(TenantContext.getScopedAgencyIdsForQueries(), List.of());
+        if (scoped.isEmpty()) {
+            throw new ForbiddenException("Agency context required");
+        }
         Page<User> page = roleFilter != null
-                ? userRepository.findByAgencyIdAndRoleAndDeletedAtIsNull(agencyId, roleFilter, pageable)
-                : userRepository.findByAgencyIdAndDeletedAtIsNull(agencyId, pageable);
+                ? userRepository.findByAgencyIdInAndRoleAndDeletedAtIsNull(scoped, roleFilter, pageable)
+                : userRepository.findByAgencyIdInAndDeletedAtIsNull(scoped, pageable);
         return toPageResponse(page);
     }
 
@@ -98,12 +103,6 @@ public class UserService {
     @Transactional
     public UserDto update(Long id, UserDto dto) {
         User user = findByIdAndContext(id);
-        Long ctxAgency = TenantContext.getAgencyId();
-        if (!TenantContext.isSuperAdmin()) {
-            if (ctxAgency == null || !ctxAgency.equals(user.getAgencyId())) {
-                throw new ForbiddenException("Access denied to this user");
-            }
-        }
         if (dto.getRole() == UserRole.SUPER_ADMIN) {
             throw new BadRequestException("Le rôle Super admin ne peut pas être attribué via ce formulaire");
         }
@@ -140,8 +139,7 @@ public class UserService {
     private User findByIdAndContext(Long id) {
         User user = userRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("User", id));
         if (user.getDeletedAt() != null) throw new ResourceNotFoundException("User", id);
-        Long agencyId = TenantContext.getAgencyId();
-        if (!TenantContext.isSuperAdmin() && (agencyId == null || !agencyId.equals(user.getAgencyId()))) {
+        if (!TenantContext.isSuperAdmin() && !TenantContext.canAccessAgencyId(user.getAgencyId())) {
             throw new ForbiddenException("Access denied to this user");
         }
         return user;
