@@ -7,6 +7,7 @@ import lombok.*;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.List;
 
 @Getter
 @Setter
@@ -50,4 +51,10 @@ public class PilgrimDto {
     /** Prochain palier (points) et titre du cadeau — GET détail. */
     private Integer nextRewardThreshold;
     private String nextRewardTitle;
+
+    /**
+     * Renseigné uniquement sur GET /api/pilgrims/{id} lorsque le voyageur appartient à un dossier famille :
+     * tous les membres (y compris celui demandé). Les éléments n’embarquent pas eux-mêmes {@code familyMembers}.
+     */
+    private List<PilgrimDto> familyMembers;
 }

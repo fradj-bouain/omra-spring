@@ -75,7 +75,20 @@ public class PilgrimService {
     @Transactional(readOnly = true)
     public PilgrimDto getById(Long id) {
         Pilgrim pilgrim = findByIdAndAgency(id);
-        return toDtoWithEnrichment(pilgrim);
+        PilgrimDto dto = toDtoWithEnrichment(pilgrim);
+        if (pilgrim.getFamilyId() != null) {
+            List<Pilgrim> siblings = pilgrimRepository.findByAgencyIdAndFamilyIdAndDeletedAtIsNullOrderByIdAsc(
+                    pilgrim.getAgencyId(), pilgrim.getFamilyId());
+            List<PilgrimDto> memberDtos = siblings.stream()
+                    .map(p -> {
+                        PilgrimDto md = toDtoWithEnrichment(p);
+                        md.setFamilyMembers(null);
+                        return md;
+                    })
+                    .collect(Collectors.toList());
+            dto.setFamilyMembers(memberDtos);
+        }
+        return dto;
     }
 
     /**
