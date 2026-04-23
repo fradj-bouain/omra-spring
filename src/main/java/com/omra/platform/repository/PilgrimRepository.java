@@ -22,6 +22,12 @@ public interface PilgrimRepository extends JpaRepository<Pilgrim, Long> {
 
     Page<Pilgrim> findByDeletedAtIsNull(Pageable pageable);
 
+    List<Pilgrim> findByAgencyIdAndDeletedAtIsNullOrderByLastNameAscFirstNameAsc(Long agencyId);
+
+    List<Pilgrim> findByAgencyIdInAndDeletedAtIsNullOrderByLastNameAscFirstNameAsc(Collection<Long> agencyIds);
+
+    List<Pilgrim> findByAgencyIdAndFamilyIdAndDeletedAtIsNullOrderByIdAsc(Long agencyId, Long familyId);
+
     long countByDeletedAtIsNull();
 
     long countByAgencyIdAndDeletedAtIsNull(Long agencyId);

@@ -144,23 +144,57 @@ public class UmrahGroupService {
         if (!group.getAgencyId().equals(pilgrim.getAgencyId())) {
             throw new BadRequestException("Pilgrim does not belong to the same agency");
         }
-        if (groupPilgrimRepository.existsByGroupIdAndPilgrimId(groupId, pilgrimId)) {
+
+        // Si le pèlerin fait partie d’une famille, on ajoute toute la famille en une fois.
+        List<Pilgrim> candidates = pilgrim.getFamilyId() == null
+                ? List.of(pilgrim)
+                : pilgrimRepository.findByAgencyIdAndFamilyIdAndDeletedAtIsNullOrderByIdAsc(group.getAgencyId(), pilgrim.getFamilyId());
+
+        Set<Long> existing = groupPilgrimRepository.findByGroupId(groupId).stream()
+                .map(GroupPilgrim::getPilgrimId)
+                .collect(Collectors.toSet());
+
+        List<Pilgrim> toAdd = candidates.stream()
+                .filter(p -> !existing.contains(p.getId()))
+                .toList();
+
+        if (toAdd.isEmpty()) {
             throw new BadRequestException("Pilgrim already in group");
         }
+
         if (group.getMaxCapacity() != null) {
-            long count = groupPilgrimRepository.findByGroupId(groupId).size();
-            if (count >= group.getMaxCapacity()) {
+            long current = existing.size();
+            long next = current + toAdd.size();
+            if (next > group.getMaxCapacity()) {
                 throw new BadRequestException("Group is full");
             }
         }
-        GroupPilgrim gp = GroupPilgrim.builder().groupId(groupId).pilgrimId(pilgrimId).build();
-        groupPilgrimRepository.save(gp);
+
+        List<GroupPilgrim> gps = toAdd.stream()
+                .map(p -> GroupPilgrim.builder().groupId(groupId).pilgrimId(p.getId()).build())
+                .toList();
+        groupPilgrimRepository.saveAll(gps);
     }
 
     @Transactional
     public void removePilgrimFromGroup(Long groupId, Long pilgrimId) {
-        findByIdAndAgency(groupId);
-        groupPilgrimRepository.deleteByGroupIdAndPilgrimId(groupId, pilgrimId);
+        UmrahGroup group = findByIdAndAgency(groupId);
+        Pilgrim pilgrim = pilgrimRepository.findById(pilgrimId)
+                .orElseThrow(() -> new ResourceNotFoundException("Pilgrim", pilgrimId));
+        if (pilgrim.getDeletedAt() != null) throw new ResourceNotFoundException("Pilgrim", pilgrimId);
+        if (!group.getAgencyId().equals(pilgrim.getAgencyId())) {
+            throw new BadRequestException("Pilgrim does not belong to the same agency");
+        }
+
+        if (pilgrim.getFamilyId() == null) {
+            groupPilgrimRepository.deleteByGroupIdAndPilgrimId(groupId, pilgrimId);
+            return;
+        }
+
+        List<Pilgrim> members = pilgrimRepository.findByAgencyIdAndFamilyIdAndDeletedAtIsNullOrderByIdAsc(group.getAgencyId(), pilgrim.getFamilyId());
+        for (Pilgrim m : members) {
+            groupPilgrimRepository.deleteByGroupIdAndPilgrimId(groupId, m.getId());
+        }
     }
 
     @Transactional(readOnly = true)
@@ -262,6 +296,8 @@ public class UmrahGroupService {
         return PilgrimDto.builder()
                 .id(p.getId())
                 .agencyId(p.getAgencyId())
+                .familyId(p.getFamilyId())
+                .familyRole(p.getFamilyRole())
                 .firstName(p.getFirstName())
                 .lastName(p.getLastName())
                 .gender(p.getGender())

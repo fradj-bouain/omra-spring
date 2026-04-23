@@ -5,6 +5,8 @@ import com.omra.platform.dto.CreatePilgrimFamilyBatchResponseDto;
 import com.omra.platform.dto.FamilyMemberPayloadDto;
 import com.omra.platform.dto.PageResponse;
 import com.omra.platform.dto.PilgrimDto;
+import com.omra.platform.dto.PilgrimRegistrationRowDto;
+import com.omra.platform.dto.PilgrimRegistrationType;
 import com.omra.platform.dto.PilgrimSearchResultDto;
 import com.omra.platform.entity.Pilgrim;
 import com.omra.platform.entity.PilgrimFamily;
@@ -29,8 +31,11 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.Objects;
+import java.util.LinkedHashMap;
+import java.util.Comparator;
 import java.util.stream.Collectors;
 
 @Service
@@ -71,6 +76,136 @@ public class PilgrimService {
     public PilgrimDto getById(Long id) {
         Pilgrim pilgrim = findByIdAndAgency(id);
         return toDtoWithEnrichment(pilgrim);
+    }
+
+    /**
+     * Retour “liste voyageurs” : 1 ligne = INDIVIDUAL, ou 1 ligne = FAMILY (avec membres + nbrPersonnes).
+     * Pagination effectuée sur les lignes “enregistrement”, pas sur les pèlerins.
+     */
+    @Transactional(readOnly = true)
+    public PageResponse<PilgrimRegistrationRowDto> getRegistrations(Pageable pageable, String q) {
+        Long agencyId = requireAgencyId();
+        List<Long> scoped = Objects.requireNonNullElse(TenantContext.getScopedAgencyIdsForQueries(), List.of());
+        if (!TenantContext.isSuperAdmin()) {
+            if (scoped.isEmpty()) throw new ForbiddenException("Agency context required");
+        } else {
+            // super admin sans agency : on permet, mais scoped peut être vide -> lecture globale
+        }
+
+        List<Pilgrim> all;
+        if (TenantContext.isSuperAdmin() && agencyId == null) {
+            all = pilgrimRepository.findByDeletedAtIsNull(PageRequest.of(0, Integer.MAX_VALUE)).getContent();
+        } else if (scoped.size() == 1) {
+            all = pilgrimRepository.findByAgencyIdAndDeletedAtIsNullOrderByLastNameAscFirstNameAsc(scoped.get(0));
+        } else if (!scoped.isEmpty()) {
+            all = pilgrimRepository.findByAgencyIdInAndDeletedAtIsNullOrderByLastNameAscFirstNameAsc(scoped);
+        } else {
+            // super admin avec agencyId non-null ou contexte étrange
+            all = pilgrimRepository.findByAgencyIdAndDeletedAtIsNullOrderByLastNameAscFirstNameAsc(agencyId);
+        }
+
+        String qq = q != null ? q.trim().toLowerCase() : "";
+
+        // Map famille -> membres (conserve ordre d’insertion)
+        Map<Long, List<Pilgrim>> familyMembers = new LinkedHashMap<>();
+        List<Pilgrim> individuals = new ArrayList<>();
+        for (Pilgrim p : all) {
+            if (p.getFamilyId() == null) {
+                individuals.add(p);
+            } else {
+                familyMembers.computeIfAbsent(p.getFamilyId(), __ -> new ArrayList<>()).add(p);
+            }
+        }
+
+        List<PilgrimRegistrationRowDto> rows = new ArrayList<>();
+
+        for (Pilgrim p : individuals) {
+            if (!qq.isEmpty() && !matchesPilgrim(p, qq)) continue;
+            rows.add(PilgrimRegistrationRowDto.builder()
+                    .registrationType(PilgrimRegistrationType.INDIVIDUAL)
+                    .familyId(null)
+                    .membersCount(1)
+                    .representative(toDto(p))
+                    .members(List.of())
+                    .build());
+        }
+
+        for (var e : familyMembers.entrySet()) {
+            Long familyId = e.getKey();
+            List<Pilgrim> members = e.getValue();
+            members.sort(Comparator.comparing(Pilgrim::getId));
+
+            if (!qq.isEmpty()) {
+                boolean any = members.stream().anyMatch(m -> matchesPilgrim(m, qq));
+                if (!any) continue;
+            }
+
+            Pilgrim rep = members.get(0);
+            List<PilgrimDto> memberDtos = members.stream().map(this::toDto).collect(Collectors.toList());
+
+            rows.add(PilgrimRegistrationRowDto.builder()
+                    .registrationType(PilgrimRegistrationType.FAMILY)
+                    .familyId(familyId)
+                    .membersCount(members.size())
+                    .representative(toDto(rep))
+                    .members(memberDtos)
+                    .build());
+        }
+
+        // Trier par nom du représentant (cohérent avec l’ordre list)
+        rows.sort((a, b) -> {
+            String al = a.getRepresentative() != null && a.getRepresentative().getLastName() != null ? a.getRepresentative().getLastName() : "";
+            String bl = b.getRepresentative() != null && b.getRepresentative().getLastName() != null ? b.getRepresentative().getLastName() : "";
+            int c = al.compareToIgnoreCase(bl);
+            if (c != 0) return c;
+            String af = a.getRepresentative() != null && a.getRepresentative().getFirstName() != null ? a.getRepresentative().getFirstName() : "";
+            String bf = b.getRepresentative() != null && b.getRepresentative().getFirstName() != null ? b.getRepresentative().getFirstName() : "";
+            return af.compareToIgnoreCase(bf);
+        });
+
+        int page = pageable.getPageNumber();
+        int size = pageable.getPageSize();
+        int from = Math.max(0, page * size);
+        int to = Math.min(rows.size(), from + size);
+        List<PilgrimRegistrationRowDto> content = from >= rows.size() ? List.of() : rows.subList(from, to);
+
+        int totalElements = rows.size();
+        int totalPages = size <= 0 ? 1 : (int) Math.ceil(totalElements / (double) size);
+
+        return PageResponse.<PilgrimRegistrationRowDto>builder()
+                .content(content)
+                .page(page)
+                .size(size)
+                .totalElements(totalElements)
+                .totalPages(totalPages)
+                .first(page == 0)
+                .last(page >= totalPages - 1)
+                .build();
+    }
+
+    private static boolean matchesPilgrim(Pilgrim p, String qq) {
+        String name = (String.valueOf(p.getFirstName()) + " " + String.valueOf(p.getLastName())).toLowerCase();
+        String first = String.valueOf(p.getFirstName()).toLowerCase();
+        String last = String.valueOf(p.getLastName()).toLowerCase();
+        String pass = p.getPassportNumber() != null ? p.getPassportNumber().toLowerCase() : "";
+        return name.contains(qq) || first.contains(qq) || last.contains(qq) || pass.contains(qq);
+    }
+
+    @Transactional
+    public void deleteFamily(Long familyId) {
+        Long agencyId = requireAgencyId();
+        if (agencyId == null && !TenantContext.isSuperAdmin()) {
+            throw new ForbiddenException("Agency context required");
+        }
+        List<Pilgrim> members = pilgrimRepository.findByAgencyIdAndFamilyIdAndDeletedAtIsNullOrderByIdAsc(agencyId, familyId);
+        if (members.isEmpty()) {
+            throw new ResourceNotFoundException("PilgrimFamily", familyId);
+        }
+        Instant now = Instant.now();
+        for (Pilgrim p : members) {
+            p.setDeletedAt(now);
+        }
+        pilgrimRepository.saveAll(members);
     }
 
     /** Autocomplete pour choisir un pèlerin parrain (min. 2 caractères). */
