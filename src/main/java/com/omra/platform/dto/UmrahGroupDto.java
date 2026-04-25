@@ -33,4 +33,9 @@ public class UmrahGroupDto {
     private Instant createdAt;
     /** IDs des utilisateurs accompagnateurs (rôle PILGRIM_COMPANION) affectés au groupe */
     private List<Long> companionIds;
+    /**
+     * Noms affichables des accompagnateurs (même ordre que {@code companionIds}), pour listes & tableaux
+     * sans requêtes côté client.
+     */
+    private List<String> companionNames;
 }

@@ -27,8 +27,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -218,7 +221,32 @@ public class UmrahGroupService {
     }
 
     private PageResponse<UmrahGroupDto> toPageResponse(Page<UmrahGroup> page) {
-        List<UmrahGroupDto> content = page.getContent().stream().map(this::toDto).collect(Collectors.toList());
+        List<UmrahGroup> groups = page.getContent();
+        if (groups.isEmpty()) {
+            return PageResponse.<UmrahGroupDto>builder()
+                    .content(List.of())
+                    .page(page.getNumber())
+                    .size(page.getSize())
+                    .totalElements(page.getTotalElements())
+                    .totalPages(page.getTotalPages())
+                    .first(page.isFirst())
+                    .last(page.isLast())
+                    .build();
+        }
+        List<Long> gids = groups.stream().map(UmrahGroup::getId).toList();
+        List<GroupCompanion> allLinks = groupCompanionRepository.findByGroupIdInOrderByGroupIdAscIdAsc(gids);
+        Set<Long> allUserIds = allLinks.stream().map(GroupCompanion::getUserId).collect(Collectors.toSet());
+        Map<Long, String> nameByUserId = allUserIds.isEmpty()
+                ? Map.of()
+                : userRepository.findAllById(allUserIds).stream()
+                .collect(Collectors.toMap(User::getId, User::getName, (a, b) -> a));
+        Map<Long, List<Long>> cidsByGroup = new LinkedHashMap<>();
+        for (GroupCompanion gc : allLinks) {
+            cidsByGroup.computeIfAbsent(gc.getGroupId(), k -> new ArrayList<>()).add(gc.getUserId());
+        }
+        List<UmrahGroupDto> content = groups.stream()
+                .map(e -> toDto(e, cidsByGroup.getOrDefault(e.getId(), List.of()), nameByUserId))
+                .collect(Collectors.toList());
         return PageResponse.<UmrahGroupDto>builder()
                 .content(content)
                 .page(page.getNumber())
@@ -275,6 +303,17 @@ public class UmrahGroupService {
         List<Long> companionIds = groupCompanionRepository.findByGroupIdOrderByIdAsc(e.getId()).stream()
                 .map(GroupCompanion::getUserId)
                 .collect(Collectors.toList());
+        Map<Long, String> nameByUserId = companionIds.isEmpty()
+                ? Map.of()
+                : userRepository.findAllById(new HashSet<>(companionIds)).stream()
+                .collect(Collectors.toMap(User::getId, User::getName, (a, b) -> a));
+        return toDto(e, companionIds, nameByUserId);
+    }
+
+    private UmrahGroupDto toDto(UmrahGroup e, List<Long> companionIds, Map<Long, String> nameByUserId) {
+        List<String> companionNames = companionIds.stream()
+                .map(uid -> nameByUserId.getOrDefault(uid, "—"))
+                .collect(Collectors.toList());
         return UmrahGroupDto.builder()
                 .id(e.getId())
                 .agencyId(e.getAgencyId())
@@ -289,6 +328,7 @@ public class UmrahGroupService {
                 .status(e.getStatus())
                 .createdAt(e.getCreatedAt())
                 .companionIds(companionIds)
+                .companionNames(companionNames)
                 .build();
     }
 
