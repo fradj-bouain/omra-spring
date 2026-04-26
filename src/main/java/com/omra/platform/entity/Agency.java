@@ -1,5 +1,6 @@
 package com.omra.platform.entity;
 
+import com.omra.platform.entity.enums.AgencyKind;
 import com.omra.platform.entity.enums.AgencyStatus;
 import com.omra.platform.entity.enums.ThemeMode;
 import jakarta.persistence.*;
@@ -59,6 +60,12 @@ public class Agency {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private AgencyStatus status;
+
+    /** Business profile: travel (Omra), marketplace storefront, or hotel operator. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "agency_kind", nullable = false, length = 16)
+    @Builder.Default
+    private AgencyKind agencyKind = AgencyKind.TRAVEL;
 
     /** If set, this agency is a sub-agency of the given main (root) agency. Roots have {@code null}. */
     @Column(name = "parent_agency_id")

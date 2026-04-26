@@ -8,6 +8,7 @@ import com.omra.platform.entity.Agency;
 import com.omra.platform.entity.AgencySubscription;
 import com.omra.platform.entity.SubscriptionPlan;
 import com.omra.platform.entity.User;
+import com.omra.platform.entity.enums.AgencyKind;
 import com.omra.platform.entity.enums.AgencyStatus;
 import com.omra.platform.entity.enums.AgencySubscriptionStatus;
 import com.omra.platform.entity.enums.PaymentStatus;
@@ -93,6 +94,7 @@ public class AgencyService {
                 .subscriptionStartDate(dto.getSubscriptionStartDate())
                 .subscriptionEndDate(dto.getSubscriptionEndDate())
                 .status(dto.getStatus() != null ? dto.getStatus() : AgencyStatus.ACTIVE)
+                .agencyKind(dto.getAgencyKind() != null ? dto.getAgencyKind() : AgencyKind.TRAVEL)
                 .build();
         AgencyThemeDefaults.applyThemeOnCreate(agency, dto);
         agency = agencyRepository.save(agency);
@@ -150,6 +152,7 @@ public class AgencyService {
                 .subscriptionEndDate(dto.getSubscriptionEndDate())
                 .status(dto.getStatus() != null ? dto.getStatus() : AgencyStatus.ACTIVE)
                 .parentAgencyId(parentId)
+                .agencyKind(parent.getAgencyKind() != null ? parent.getAgencyKind() : AgencyKind.TRAVEL)
                 .build();
         AgencyThemeDefaults.applyThemeOnCreate(agency, dto);
         agency = agencyRepository.save(agency);
@@ -240,6 +243,12 @@ public class AgencyService {
         if (dto.getSubscriptionStartDate() != null) agency.setSubscriptionStartDate(dto.getSubscriptionStartDate());
         if (dto.getSubscriptionEndDate() != null) agency.setSubscriptionEndDate(dto.getSubscriptionEndDate());
         if (dto.getStatus() != null) agency.setStatus(dto.getStatus());
+        if (dto.getAgencyKind() != null) {
+            if (!TenantContext.isSuperAdmin()) {
+                throw new ForbiddenException("Seul le super-administrateur peut modifier le type d'agence.");
+            }
+            agency.setAgencyKind(dto.getAgencyKind());
+        }
         if (dto.getLogoUrl() != null) agency.setLogoUrl(dto.getLogoUrl());
         if (dto.getFaviconUrl() != null) agency.setFaviconUrl(dto.getFaviconUrl());
         patchHexColor(agency::setPrimaryColor, dto.getPrimaryColor(), "primaryColor");

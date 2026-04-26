@@ -34,6 +34,7 @@ public class AgencyMapper {
                 .subscriptionStartDate(entity.getSubscriptionStartDate())
                 .subscriptionEndDate(entity.getSubscriptionEndDate())
                 .status(entity.getStatus())
+                .agencyKind(entity.getAgencyKind())
                 .parentAgencyId(entity.getParentAgencyId())
                 .createdAt(entity.getCreatedAt())
                 .build();

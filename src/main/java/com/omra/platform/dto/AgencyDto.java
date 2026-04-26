@@ -1,5 +1,6 @@
 package com.omra.platform.dto;
 
+import com.omra.platform.entity.enums.AgencyKind;
 import com.omra.platform.entity.enums.AgencyStatus;
 import com.omra.platform.entity.enums.ThemeMode;
 import lombok.*;
@@ -38,6 +39,7 @@ public class AgencyDto {
     private LocalDate subscriptionStartDate;
     private LocalDate subscriptionEndDate;
     private AgencyStatus status;
+    private AgencyKind agencyKind;
     /** Parent main agency when this row is a sub-agency; {@code null} for roots. */
     private Long parentAgencyId;
     private Instant createdAt;
