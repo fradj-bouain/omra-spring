@@ -3,7 +3,7 @@ package com.omra.platform.interceptor;
 import com.omra.platform.service.AuditLogService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.lang.NonNull;
 import org.springframework.web.servlet.HandlerInterceptor;
 import org.springframework.web.util.ContentCachingRequestWrapper;
@@ -11,10 +11,13 @@ import org.springframework.web.util.ContentCachingResponseWrapper;
 
 import java.nio.charset.StandardCharsets;
 
-@RequiredArgsConstructor
 public class AuditLogInterceptor implements HandlerInterceptor {
 
-    private final AuditLogService auditLogService;
+    private final ObjectProvider<AuditLogService> auditLogService;
+
+    public AuditLogInterceptor(ObjectProvider<AuditLogService> auditLogService) {
+        this.auditLogService = auditLogService;
+    }
 
     @Override
     public void afterCompletion(
@@ -32,7 +35,8 @@ public class AuditLogInterceptor implements HandlerInterceptor {
             responseBody = getContent(((ContentCachingResponseWrapper) response).getContentAsByteArray());
         }
         String ip = resolveClientIp(request);
-        auditLogService.saveFromRequest(
+        AuditLogService svc = auditLogService.getObject();
+        svc.saveFromRequest(
                 request.getRequestURI(),
                 request.getMethod(),
                 requestBody,

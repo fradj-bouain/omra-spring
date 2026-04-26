@@ -3,6 +3,7 @@ package com.omra.platform.config;
 import com.omra.platform.interceptor.AuditLogInterceptor;
 import com.omra.platform.service.AuditLogService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -18,7 +19,7 @@ import java.nio.file.Paths;
 @RequiredArgsConstructor
 public class WebMvcConfig implements WebMvcConfigurer {
 
-    private final AuditLogService auditLogService;
+    private final ObjectProvider<AuditLogService> auditLogService;
     private final StorageProperties storageProperties;
 
     @Override
