@@ -1,5 +1,6 @@
 package com.omra.platform.entity;
 
+import com.omra.platform.entity.converter.AgencyKindColumnConverter;
 import com.omra.platform.entity.enums.AgencyKind;
 import com.omra.platform.entity.enums.AgencyStatus;
 import com.omra.platform.entity.enums.ThemeMode;
@@ -62,7 +63,7 @@ public class Agency {
     private AgencyStatus status;
 
     /** Business profile: travel (Omra), marketplace storefront, or hotel operator. */
-    @Enumerated(EnumType.STRING)
+    @Convert(converter = AgencyKindColumnConverter.class)
     @Column(name = "agency_kind", nullable = false, length = 16)
     @Builder.Default
     private AgencyKind agencyKind = AgencyKind.TRAVEL;

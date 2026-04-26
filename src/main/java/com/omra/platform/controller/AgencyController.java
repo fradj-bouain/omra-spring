@@ -28,7 +28,9 @@ public class AgencyController {
     public ResponseEntity<PageResponse<AgencyDto>> getAgencies(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(agencyService.getAgencies(PageRequest.of(page, size)));
+        int safePage = Math.max(0, page);
+        int safeSize = size <= 0 ? 20 : Math.min(size, 200);
+        return ResponseEntity.ok(agencyService.getAgencies(PageRequest.of(safePage, safeSize)));
     }
 
     @GetMapping("/theme")
