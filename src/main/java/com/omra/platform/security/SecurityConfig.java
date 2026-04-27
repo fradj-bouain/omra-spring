@@ -58,6 +58,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/agencies").hasRole("SUPER_ADMIN")
                         .requestMatchers("/api/agencies/**").authenticated()
                         .requestMatchers("/api/audit-logs", "/api/audit-logs/**").hasAnyRole("SUPER_ADMIN", "AGENCY_ADMIN")
+                        .requestMatchers("/api/hotel-offers", "/api/hotel-offers/**").authenticated()
                         .requestMatchers("/api/**").authenticated()
                         .anyRequest().authenticated()
                 )

@@ -63,6 +63,13 @@ public class HotelOperatorController {
         return ResponseEntity.ok(hotelOperatorService.updateOffer(id, body));
     }
 
+    @PostMapping("/offers/{id}/status")
+    @Operation(summary = "Activate or disable an offer")
+    public ResponseEntity<HotelOfferDto> setOfferStatus(
+            @PathVariable Long id, @RequestParam boolean active) {
+        return ResponseEntity.ok(hotelOperatorService.setOfferStatus(id, active));
+    }
+
     @DeleteMapping("/offers/{id}")
     @Operation(summary = "Delete an offer")
     public ResponseEntity<Void> deleteOffer(@PathVariable Long id) {

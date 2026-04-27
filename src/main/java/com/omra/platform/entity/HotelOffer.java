@@ -1,6 +1,7 @@
 package com.omra.platform.entity;
 
 import com.omra.platform.entity.enums.HotelPricingUnit;
+import com.omra.platform.entity.enums.HotelOfferStatus;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -35,6 +36,11 @@ public class HotelOffer {
 
     @Column(name = "image_url", length = 1024)
     private String imageUrl;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 16)
+    @Builder.Default
+    private HotelOfferStatus status = HotelOfferStatus.DISABLED;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "pricing_unit", nullable = false, length = 16)

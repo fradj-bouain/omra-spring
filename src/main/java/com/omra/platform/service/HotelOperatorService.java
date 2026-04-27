@@ -5,6 +5,7 @@ import com.omra.platform.entity.Agency;
 import com.omra.platform.entity.HotelOffer;
 import com.omra.platform.entity.HotelProperty;
 import com.omra.platform.entity.enums.AgencyKind;
+import com.omra.platform.entity.enums.HotelOfferStatus;
 import com.omra.platform.exception.BadRequestException;
 import com.omra.platform.exception.ForbiddenException;
 import com.omra.platform.exception.ResourceNotFoundException;
@@ -153,6 +154,15 @@ public class HotelOperatorService {
     }
 
     @Transactional
+    public HotelOfferDto setOfferStatus(Long offerId, boolean active) {
+        Long agencyId = requireHotelAgencyId();
+        HotelOffer o = offerRepository.findByIdAndAgencyId(offerId, agencyId)
+                .orElseThrow(() -> new ResourceNotFoundException("HotelOffer", offerId));
+        o.setStatus(active ? HotelOfferStatus.ACTIVE : HotelOfferStatus.DISABLED);
+        return toOfferDto(offerRepository.save(o));
+    }
+
+    @Transactional
     public void deleteOffer(Long id) {
         Long agencyId = requireHotelAgencyId();
         HotelOffer o = offerRepository.findByIdAndAgencyId(id, agencyId)
@@ -231,6 +241,7 @@ public class HotelOperatorService {
                 .title(o.getTitle())
                 .description(o.getDescription())
                 .imageUrl(o.getImageUrl())
+                .status(o.getStatus())
                 .pricingUnit(o.getPricingUnit())
                 .price(o.getPrice())
                 .currency(o.getCurrency())

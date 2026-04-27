@@ -1,6 +1,7 @@
 package com.omra.platform.dto;
 
 import com.omra.platform.entity.enums.HotelPricingUnit;
+import com.omra.platform.entity.enums.HotelOfferStatus;
 import lombok.*;
 
 import java.math.BigDecimal;
@@ -19,6 +20,7 @@ public class HotelOfferDto {
     private String title;
     private String description;
     private String imageUrl;
+    private HotelOfferStatus status;
     private HotelPricingUnit pricingUnit;
     private BigDecimal price;
     private String currency;
