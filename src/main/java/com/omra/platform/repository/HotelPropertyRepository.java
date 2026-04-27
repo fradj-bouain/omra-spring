@@ -8,7 +8,9 @@ import java.util.Optional;
 
 public interface HotelPropertyRepository extends JpaRepository<HotelProperty, Long> {
 
-    List<HotelProperty> findByAgencyIdOrderByNameAsc(Long agencyId);
+    long countByAgencyIdAndDeletedAtIsNull(Long agencyId);
 
-    Optional<HotelProperty> findByIdAndAgencyId(Long id, Long agencyId);
+    List<HotelProperty> findByAgencyIdAndDeletedAtIsNullOrderByNameAsc(Long agencyId);
+
+    Optional<HotelProperty> findByIdAndAgencyIdAndDeletedAtIsNull(Long id, Long agencyId);
 }

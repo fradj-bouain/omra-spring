@@ -1,16 +1,16 @@
 package com.omra.platform.service;
 
-import com.omra.platform.dto.HotelOfferDto;
+import com.omra.platform.dto.TransportOfferDto;
 import com.omra.platform.entity.Agency;
-import com.omra.platform.entity.HotelOffer;
-import com.omra.platform.entity.HotelProperty;
+import com.omra.platform.entity.TransportOffer;
+import com.omra.platform.entity.TransportVehicle;
 import com.omra.platform.entity.enums.AgencyKind;
-import com.omra.platform.entity.enums.HotelOfferStatus;
+import com.omra.platform.entity.enums.TransportOfferStatus;
 import com.omra.platform.exception.ForbiddenException;
 import com.omra.platform.exception.ResourceNotFoundException;
 import com.omra.platform.repository.AgencyRepository;
-import com.omra.platform.repository.HotelOfferRepository;
-import com.omra.platform.repository.HotelPropertyRepository;
+import com.omra.platform.repository.TransportOfferRepository;
+import com.omra.platform.repository.TransportVehicleRepository;
 import com.omra.platform.util.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -25,14 +25,14 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
-public class HotelOfferBrowseService {
+public class TransportOfferBrowseService {
 
     private final AgencyRepository agencyRepository;
-    private final HotelOfferRepository offerRepository;
-    private final HotelPropertyRepository propertyRepository;
+    private final TransportOfferRepository offerRepository;
+    private final TransportVehicleRepository vehicleRepository;
 
     @Transactional(readOnly = true)
-    public List<HotelOfferDto> listActiveOffersForTravelAgencies() {
+    public List<TransportOfferDto> listActiveOffersForTravelAgencies() {
         Long agencyId = TenantContext.getAgencyId();
         if (agencyId == null) {
             throw new ForbiddenException("Agence requise.");
@@ -42,30 +42,30 @@ public class HotelOfferBrowseService {
         if (agency.getAgencyKind() != AgencyKind.TRAVEL) {
             throw new ForbiddenException("Réservé aux agences de type voyage.");
         }
-        List<HotelOffer> offers = offerRepository.findByStatusAndDeletedAtIsNullOrderByCreatedAtDesc(HotelOfferStatus.ACTIVE);
-        Map<Long, HotelProperty> properties = loadPropertiesById(offers);
-        Map<Long, Agency> hotelAgencies = loadAgenciesById(offers);
+        List<TransportOffer> offers = offerRepository.findByStatusAndDeletedAtIsNullOrderByCreatedAtDesc(TransportOfferStatus.ACTIVE);
+        Map<Long, TransportVehicle> vehicles = loadVehiclesById(offers);
+        Map<Long, Agency> transportAgencies = loadAgenciesById(offers);
         return offers.stream()
-                .map(o -> toDto(o, properties.get(o.getPropertyId()), hotelAgencies.get(o.getAgencyId())))
+                .map(o -> toDto(o, vehicles.get(o.getVehicleId()), transportAgencies.get(o.getAgencyId())))
                 .collect(Collectors.toList());
     }
 
-    private Map<Long, HotelProperty> loadPropertiesById(List<HotelOffer> offers) {
+    private Map<Long, TransportVehicle> loadVehiclesById(List<TransportOffer> offers) {
         Set<Long> ids = new HashSet<>();
-        for (HotelOffer o : offers) {
-            if (o.getPropertyId() != null) ids.add(o.getPropertyId());
+        for (TransportOffer o : offers) {
+            if (o.getVehicleId() != null) ids.add(o.getVehicleId());
         }
         if (ids.isEmpty()) return Map.of();
-        Map<Long, HotelProperty> map = new HashMap<>();
-        for (HotelProperty p : propertyRepository.findAllById(ids)) {
-            map.put(p.getId(), p);
+        Map<Long, TransportVehicle> map = new HashMap<>();
+        for (TransportVehicle v : vehicleRepository.findAllById(ids)) {
+            map.put(v.getId(), v);
         }
         return map;
     }
 
-    private Map<Long, Agency> loadAgenciesById(List<HotelOffer> offers) {
+    private Map<Long, Agency> loadAgenciesById(List<TransportOffer> offers) {
         Set<Long> ids = new HashSet<>();
-        for (HotelOffer o : offers) {
+        for (TransportOffer o : offers) {
             if (o.getAgencyId() != null) ids.add(o.getAgencyId());
         }
         if (ids.isEmpty()) return Map.of();
@@ -76,17 +76,16 @@ public class HotelOfferBrowseService {
         return map;
     }
 
-    private HotelOfferDto toDto(HotelOffer o, HotelProperty p, Agency hotelAgency) {
-        return HotelOfferDto.builder()
+    private TransportOfferDto toDto(TransportOffer o, TransportVehicle v, Agency transportAgency) {
+        return TransportOfferDto.builder()
                 .id(o.getId())
-                .propertyId(o.getPropertyId())
-                .hotelAgencyId(o.getAgencyId())
-                .hotelAgencyName(hotelAgency != null ? hotelAgency.getName() : null)
-                .propertyName(p != null ? p.getName() : null)
-                .propertyCity(p != null ? p.getCity() : null)
-                .propertyCountry(p != null ? p.getCountry() : null)
-                .propertyAddress(p != null ? p.getAddress() : null)
-                .propertyImageUrl(p != null ? p.getImageUrl() : null)
+                .vehicleId(o.getVehicleId())
+                .transportAgencyId(o.getAgencyId())
+                .transportAgencyName(transportAgency != null ? transportAgency.getName() : null)
+                .vehicleType(v != null ? v.getVehicleType() : null)
+                .vehicleSeatCount(v != null ? v.getSeatCount() : null)
+                .vehiclePlate(v != null ? v.getPlate() : null)
+                .vehicleBrand(v != null ? v.getBrand() : null)
                 .title(o.getTitle())
                 .description(o.getDescription())
                 .imageUrl(o.getImageUrl())
@@ -102,4 +101,3 @@ public class HotelOfferBrowseService {
                 .build();
     }
 }
-

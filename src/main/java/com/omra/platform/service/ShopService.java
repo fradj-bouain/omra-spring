@@ -22,6 +22,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -86,7 +87,7 @@ public class ShopService {
     @Transactional(readOnly = true)
     public List<MarketplaceProductDto> listProducts() {
         Marketplace m = loadShopMarketplace();
-        return productRepository.findByAgencyIdAndMarketplaceIdOrderByTitleAsc(m.getAgencyId(), m.getId()).stream()
+        return productRepository.findByAgencyIdAndMarketplaceIdAndDeletedAtIsNullOrderByTitleAsc(m.getAgencyId(), m.getId()).stream()
                 .map(this::toProductDto)
                 .collect(Collectors.toList());
     }
@@ -116,7 +117,7 @@ public class ShopService {
     @Transactional
     public MarketplaceProductDto updateProduct(Long productId, ShopProductWriteDto dto) {
         Marketplace m = loadShopMarketplace();
-        MarketplaceProduct p = productRepository.findByIdAndAgencyId(productId, m.getAgencyId())
+        MarketplaceProduct p = productRepository.findByIdAndAgencyIdAndDeletedAtIsNull(productId, m.getAgencyId())
                 .orElseThrow(() -> new ResourceNotFoundException("Product", productId));
         if (!p.getMarketplaceId().equals(m.getId())) {
             throw new ForbiddenException("Produit hors boutique.");
@@ -141,12 +142,13 @@ public class ShopService {
     @Transactional
     public void deleteProduct(Long productId) {
         Marketplace m = loadShopMarketplace();
-        MarketplaceProduct p = productRepository.findByIdAndAgencyId(productId, m.getAgencyId())
+        MarketplaceProduct p = productRepository.findByIdAndAgencyIdAndDeletedAtIsNull(productId, m.getAgencyId())
                 .orElseThrow(() -> new ResourceNotFoundException("Product", productId));
         if (!p.getMarketplaceId().equals(m.getId())) {
             throw new ForbiddenException("Produit hors boutique.");
         }
-        productRepository.delete(p);
+        p.setDeletedAt(Instant.now());
+        productRepository.save(p);
     }
 
     @Transactional(readOnly = true)

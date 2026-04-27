@@ -1,22 +1,22 @@
 package com.omra.platform.service;
 
 import com.omra.platform.dto.HotelReservationCreateDto;
-import com.omra.platform.dto.HotelReservationDto;
-import com.omra.platform.dto.HotelReservationTravelViewDto;
+import com.omra.platform.dto.TransportReservationDto;
+import com.omra.platform.dto.TransportReservationTravelViewDto;
 import com.omra.platform.entity.Agency;
-import com.omra.platform.entity.HotelOffer;
-import com.omra.platform.entity.HotelOfferReservation;
-import com.omra.platform.entity.HotelProperty;
+import com.omra.platform.entity.TransportOffer;
+import com.omra.platform.entity.TransportOfferReservation;
+import com.omra.platform.entity.TransportVehicle;
 import com.omra.platform.entity.enums.AgencyKind;
-import com.omra.platform.entity.enums.HotelOfferStatus;
 import com.omra.platform.entity.enums.HotelReservationStatus;
+import com.omra.platform.entity.enums.TransportOfferStatus;
 import com.omra.platform.exception.BadRequestException;
 import com.omra.platform.exception.ForbiddenException;
 import com.omra.platform.exception.ResourceNotFoundException;
 import com.omra.platform.repository.AgencyRepository;
-import com.omra.platform.repository.HotelOfferRepository;
-import com.omra.platform.repository.HotelOfferReservationRepository;
-import com.omra.platform.repository.HotelPropertyRepository;
+import com.omra.platform.repository.TransportOfferRepository;
+import com.omra.platform.repository.TransportOfferReservationRepository;
+import com.omra.platform.repository.TransportVehicleRepository;
 import com.omra.platform.util.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -31,19 +31,19 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
-public class HotelReservationService {
+public class TransportReservationService {
 
     private final AgencyRepository agencyRepository;
-    private final HotelOfferRepository offerRepository;
-    private final HotelOfferReservationRepository reservationRepository;
-    private final HotelPropertyRepository propertyRepository;
+    private final TransportOfferRepository offerRepository;
+    private final TransportOfferReservationRepository reservationRepository;
+    private final TransportVehicleRepository vehicleRepository;
 
     @Transactional
-    public HotelReservationDto createReservation(Long offerId, HotelReservationCreateDto dto) {
+    public TransportReservationDto createReservation(Long offerId, HotelReservationCreateDto dto) {
         Long travelAgencyId = requireAgencyIdOfKind(AgencyKind.TRAVEL);
-        HotelOffer offer = offerRepository.findByIdAndDeletedAtIsNull(offerId)
-                .orElseThrow(() -> new ResourceNotFoundException("HotelOffer", offerId));
-        if (offer.getStatus() != HotelOfferStatus.ACTIVE) {
+        TransportOffer offer = offerRepository.findByIdAndDeletedAtIsNull(offerId)
+                .orElseThrow(() -> new ResourceNotFoundException("TransportOffer", offerId));
+        if (offer.getStatus() != TransportOfferStatus.ACTIVE) {
             throw new BadRequestException("Cette offre n'est pas active.");
         }
         if (dto.getContactName() == null || dto.getContactName().isBlank()) {
@@ -58,7 +58,7 @@ public class HotelReservationService {
         Integer maxU = offer.getMaxUnits();
         if (minU != null || maxU != null) {
             if (units == null) {
-                throw new BadRequestException("Indiquez le nombre d'unités / personnes (selon les bornes de l'offre).");
+                throw new BadRequestException("Indiquez le nombre de passagers / unités selon les bornes de l'offre.");
             }
             if (minU != null && units < minU) {
                 throw new BadRequestException("Le nombre d'unités ne peut pas être inférieur au minimum de l'offre (" + minU + ").");
@@ -66,15 +66,13 @@ public class HotelReservationService {
             if (maxU != null && units > maxU) {
                 throw new BadRequestException("Le nombre d'unités ne peut pas dépasser le maximum de l'offre (" + maxU + ").");
             }
-        } else if (units != null) {
-            if (units < 1) {
-                throw new BadRequestException("Le nombre d'unités doit être au moins 1.");
-            }
+        } else if (units != null && units < 1) {
+            throw new BadRequestException("Le nombre d'unités doit être au moins 1.");
         }
 
-        HotelOfferReservation r = HotelOfferReservation.builder()
+        TransportOfferReservation r = TransportOfferReservation.builder()
                 .offerId(offerId)
-                .hotelAgencyId(offer.getAgencyId())
+                .transportAgencyId(offer.getAgencyId())
                 .travelAgencyId(travelAgencyId)
                 .status(HotelReservationStatus.PENDING)
                 .contactName(dto.getContactName().trim())
@@ -89,55 +87,53 @@ public class HotelReservationService {
     }
 
     @Transactional(readOnly = true)
-    public List<HotelReservationDto> listIncomingReservations() {
-        Long hotelAgencyId = requireAgencyIdOfKind(AgencyKind.HOTEL);
-        return reservationRepository.findByHotelAgencyIdOrderByCreatedAtDesc(hotelAgencyId).stream()
+    public List<TransportReservationDto> listIncomingReservations() {
+        Long transportAgencyId = requireAgencyIdOfKind(AgencyKind.TRANSPORT);
+        return reservationRepository.findByTransportAgencyIdOrderByCreatedAtDesc(transportAgencyId).stream()
                 .map(this::toDto)
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
-    public List<HotelReservationTravelViewDto> listReservationsForTravelAgency() {
+    public List<TransportReservationTravelViewDto> listReservationsForTravelAgency() {
         Long travelAgencyId = requireAgencyIdOfKind(AgencyKind.TRAVEL);
-        List<HotelOfferReservation> list =
+        List<TransportOfferReservation> list =
                 reservationRepository.findByTravelAgencyIdOrderByCreatedAtDesc(travelAgencyId);
         if (list.isEmpty()) {
             return List.of();
         }
         Set<Long> offerIds = new HashSet<>();
-        Set<Long> hotelAgencyIds = new HashSet<>();
-        for (HotelOfferReservation r : list) {
+        Set<Long> transportAgencyIds = new HashSet<>();
+        for (TransportOfferReservation r : list) {
             offerIds.add(r.getOfferId());
-            hotelAgencyIds.add(r.getHotelAgencyId());
+            transportAgencyIds.add(r.getTransportAgencyId());
         }
-        Map<Long, HotelOffer> offerMap = new HashMap<>();
-        for (HotelOffer o : offerRepository.findAllById(offerIds)) {
+        Map<Long, TransportOffer> offerMap = new HashMap<>();
+        for (TransportOffer o : offerRepository.findAllById(offerIds)) {
             offerMap.put(o.getId(), o);
         }
-        Set<Long> propertyIds = new HashSet<>();
-        for (HotelOffer o : offerMap.values()) {
-            if (o.getPropertyId() != null) {
-                propertyIds.add(o.getPropertyId());
-            }
+        Set<Long> vehicleIds = new HashSet<>();
+        for (TransportOffer o : offerMap.values()) {
+            if (o.getVehicleId() != null) vehicleIds.add(o.getVehicleId());
         }
-        Map<Long, HotelProperty> propertyMap = new HashMap<>();
-        for (HotelProperty p : propertyRepository.findAllById(propertyIds)) {
-            propertyMap.put(p.getId(), p);
+        Map<Long, TransportVehicle> vehicleMap = new HashMap<>();
+        for (TransportVehicle v : vehicleRepository.findAllById(vehicleIds)) {
+            vehicleMap.put(v.getId(), v);
         }
-        Map<Long, Agency> hotelAgencyMap = new HashMap<>();
-        for (Agency a : agencyRepository.findAllById(hotelAgencyIds)) {
-            hotelAgencyMap.put(a.getId(), a);
+        Map<Long, Agency> transportAgencyMap = new HashMap<>();
+        for (Agency a : agencyRepository.findAllById(transportAgencyIds)) {
+            transportAgencyMap.put(a.getId(), a);
         }
         return list.stream()
-                .map(r -> toTravelView(r, offerMap.get(r.getOfferId()), propertyMap, hotelAgencyMap))
+                .map(r -> toTravelView(r, offerMap.get(r.getOfferId()), vehicleMap, transportAgencyMap))
                 .collect(Collectors.toList());
     }
 
     @Transactional
-    public HotelReservationDto setReservationStatus(Long reservationId, HotelReservationStatus status) {
-        Long hotelAgencyId = requireAgencyIdOfKind(AgencyKind.HOTEL);
-        HotelOfferReservation r = reservationRepository.findByIdAndHotelAgencyId(reservationId, hotelAgencyId)
-                .orElseThrow(() -> new ResourceNotFoundException("HotelOfferReservation", reservationId));
+    public TransportReservationDto setReservationStatus(Long reservationId, HotelReservationStatus status) {
+        Long transportAgencyId = requireAgencyIdOfKind(AgencyKind.TRANSPORT);
+        TransportOfferReservation r = reservationRepository.findByIdAndTransportAgencyId(reservationId, transportAgencyId)
+                .orElseThrow(() -> new ResourceNotFoundException("TransportOfferReservation", reservationId));
         r.setStatus(status);
         return toDto(reservationRepository.save(r));
     }
@@ -160,11 +156,11 @@ public class HotelReservationService {
         return s.trim();
     }
 
-    private HotelReservationDto toDto(HotelOfferReservation r) {
-        return HotelReservationDto.builder()
+    private TransportReservationDto toDto(TransportOfferReservation r) {
+        return TransportReservationDto.builder()
                 .id(r.getId())
                 .offerId(r.getOfferId())
-                .hotelAgencyId(r.getHotelAgencyId())
+                .transportAgencyId(r.getTransportAgencyId())
                 .travelAgencyId(r.getTravelAgencyId())
                 .status(r.getStatus())
                 .contactName(r.getContactName())
@@ -178,27 +174,21 @@ public class HotelReservationService {
                 .build();
     }
 
-    private HotelReservationTravelViewDto toTravelView(
-            HotelOfferReservation r,
-            HotelOffer offer,
-            Map<Long, HotelProperty> propertyMap,
-            Map<Long, Agency> hotelAgencyMap) {
-        String offerTitle = offer != null ? offer.getTitle() : null;
-        String propertyName = null;
-        if (offer != null && offer.getPropertyId() != null) {
-            HotelProperty p = propertyMap.get(offer.getPropertyId());
-            if (p != null) {
-                propertyName = p.getName();
-            }
-        }
-        Agency hotelA = hotelAgencyMap.get(r.getHotelAgencyId());
-        String hotelAgencyName = hotelA != null ? hotelA.getName() : null;
-        return HotelReservationTravelViewDto.builder()
+    private TransportReservationTravelViewDto toTravelView(
+            TransportOfferReservation r,
+            TransportOffer offer,
+            Map<Long, TransportVehicle> vehicleMap,
+            Map<Long, Agency> transportAgencyMap) {
+        TransportVehicle v = offer != null && offer.getVehicleId() != null
+                ? vehicleMap.get(offer.getVehicleId())
+                : null;
+        Agency ta = transportAgencyMap.get(r.getTransportAgencyId());
+        return TransportReservationTravelViewDto.builder()
                 .id(r.getId())
                 .offerId(r.getOfferId())
-                .offerTitle(offerTitle)
-                .propertyName(propertyName)
-                .hotelAgencyName(hotelAgencyName)
+                .offerTitle(offer != null ? offer.getTitle() : null)
+                .vehiclePlate(v != null ? v.getPlate() : null)
+                .transportAgencyName(ta != null ? ta.getName() : null)
                 .status(r.getStatus())
                 .contactName(r.getContactName())
                 .contactPhone(r.getContactPhone())
@@ -211,4 +201,3 @@ public class HotelReservationService {
                 .build();
     }
 }
-

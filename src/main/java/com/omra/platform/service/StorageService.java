@@ -102,6 +102,10 @@ public class StorageService {
             if (!FAVICON_TYPES.contains(mime)) {
                 throw new BadRequestException("Favicon: use PNG, ICO or JPEG");
             }
+        } else if (t.equals("hotel-offer-image")) {
+            if (!BRANDING_IMAGE_TYPES.contains(mime)) {
+                throw new BadRequestException("Image: use PNG, JPEG, GIF or WebP");
+            }
         }
     }
 

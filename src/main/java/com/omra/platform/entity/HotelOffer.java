@@ -70,6 +70,10 @@ public class HotelOffer {
     @Column(name = "updated_at")
     private Instant updatedAt;
 
+    /** Suppression logique — pas de DELETE physique (réservations / FK). */
+    @Column(name = "deleted_at")
+    private Instant deletedAt;
+
     @PrePersist
     protected void onCreate() {
         if (createdAt == null) createdAt = Instant.now();

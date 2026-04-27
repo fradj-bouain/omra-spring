@@ -1,26 +1,22 @@
 package com.omra.platform.entity;
 
+import com.omra.platform.entity.enums.TransportOfferStatus;
+import com.omra.platform.entity.enums.TransportPricingUnit;
 import jakarta.persistence.*;
 import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 
-/**
- * Product in a marketplace. For MANUAL marketplaces, products are stored here.
- * For EXTERNAL_API marketplaces, this table can be used later for caching/sync; currently optional.
- */
 @Entity
-@Table(name = "marketplace_products", indexes = {
-        @Index(name = "idx_mp_product_agency_id", columnList = "agency_id"),
-        @Index(name = "idx_mp_product_marketplace_id", columnList = "marketplace_id")
-})
+@Table(name = "transport_offers")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class MarketplaceProduct {
+public class TransportOffer {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -29,14 +25,10 @@ public class MarketplaceProduct {
     @Column(name = "agency_id", nullable = false)
     private Long agencyId;
 
-    @Column(name = "marketplace_id", nullable = false)
-    private Long marketplaceId;
+    @Column(name = "vehicle_id", nullable = false)
+    private Long vehicleId;
 
-    /** Optional external id (if provided by external marketplace). */
-    @Column(name = "external_id", length = 128)
-    private String externalId;
-
-    @Column(nullable = false, length = 200)
+    @Column(nullable = false, length = 220)
     private String title;
 
     @Column(columnDefinition = "TEXT")
@@ -45,18 +37,32 @@ public class MarketplaceProduct {
     @Column(name = "image_url", length = 1024)
     private String imageUrl;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 16)
+    @Builder.Default
+    private TransportOfferStatus status = TransportOfferStatus.DISABLED;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "pricing_unit", nullable = false, length = 16)
+    private TransportPricingUnit pricingUnit;
+
     @Column(nullable = false, precision = 19, scale = 4)
     private BigDecimal price;
 
     @Column(nullable = false, length = 8)
     private String currency;
 
-    @Column(name = "in_stock", nullable = false)
-    private boolean inStock;
+    @Column(name = "min_units")
+    private Integer minUnits;
 
-    /** Optional physical stock count for manual catalogues. */
-    @Column(name = "stock_quantity")
-    private Integer stockQuantity;
+    @Column(name = "max_units")
+    private Integer maxUnits;
+
+    @Column(name = "valid_from", nullable = false)
+    private LocalDate validFrom;
+
+    @Column(name = "valid_to", nullable = false)
+    private LocalDate validTo;
 
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
@@ -64,7 +70,6 @@ public class MarketplaceProduct {
     @Column(name = "updated_at")
     private Instant updatedAt;
 
-    /** Suppression logique — pas de DELETE physique (commandes / FK). */
     @Column(name = "deleted_at")
     private Instant deletedAt;
 
@@ -79,4 +84,3 @@ public class MarketplaceProduct {
         updatedAt = Instant.now();
     }
 }
-

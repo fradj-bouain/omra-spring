@@ -8,8 +8,7 @@ import java.util.Optional;
 
 public interface MarketplaceProductRepository extends JpaRepository<MarketplaceProduct, Long> {
 
-    List<MarketplaceProduct> findByAgencyIdAndMarketplaceIdOrderByTitleAsc(Long agencyId, Long marketplaceId);
+    List<MarketplaceProduct> findByAgencyIdAndMarketplaceIdAndDeletedAtIsNullOrderByTitleAsc(Long agencyId, Long marketplaceId);
 
-    Optional<MarketplaceProduct> findByIdAndAgencyId(Long id, Long agencyId);
+    Optional<MarketplaceProduct> findByIdAndAgencyIdAndDeletedAtIsNull(Long id, Long agencyId);
 }
-

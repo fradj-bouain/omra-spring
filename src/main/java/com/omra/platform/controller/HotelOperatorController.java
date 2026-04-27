@@ -21,6 +21,12 @@ public class HotelOperatorController {
     private final HotelOperatorService hotelOperatorService;
     private final HotelReservationService hotelReservationService;
 
+    @GetMapping("/dashboard")
+    @Operation(summary = "Tableau de bord hôtelier : volumes et dernières demandes de réservation")
+    public ResponseEntity<HotelDashboardDto> getHotelDashboard() {
+        return ResponseEntity.ok(hotelOperatorService.getDashboard());
+    }
+
     @GetMapping("/properties")
     @Operation(summary = "List hotel properties for the tenant")
     public ResponseEntity<List<HotelPropertyDto>> listProperties() {
@@ -41,7 +47,7 @@ public class HotelOperatorController {
     }
 
     @DeleteMapping("/properties/{id}")
-    @Operation(summary = "Delete a hotel property (cascades offers)")
+    @Operation(summary = "Masquer un établissement (suppression logique ; masque aussi ses offres)")
     public ResponseEntity<Void> deleteProperty(@PathVariable Long id) {
         hotelOperatorService.deleteProperty(id);
         return ResponseEntity.noContent().build();
@@ -74,7 +80,7 @@ public class HotelOperatorController {
     }
 
     @DeleteMapping("/offers/{id}")
-    @Operation(summary = "Delete an offer")
+    @Operation(summary = "Masquer une offre (suppression logique — conserve les réservations liées)")
     public ResponseEntity<Void> deleteOffer(@PathVariable Long id) {
         hotelOperatorService.deleteOffer(id);
         return ResponseEntity.noContent().build();

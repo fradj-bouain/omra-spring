@@ -9,11 +9,17 @@ import java.util.Optional;
 
 public interface HotelOfferRepository extends JpaRepository<HotelOffer, Long> {
 
-    List<HotelOffer> findByAgencyIdOrderByCreatedAtDesc(Long agencyId);
+    long countByAgencyIdAndDeletedAtIsNull(Long agencyId);
 
-    List<HotelOffer> findByAgencyIdAndPropertyIdOrderByCreatedAtDesc(Long agencyId, Long propertyId);
+    long countByAgencyIdAndStatusAndDeletedAtIsNull(Long agencyId, HotelOfferStatus status);
 
-    Optional<HotelOffer> findByIdAndAgencyId(Long id, Long agencyId);
+    List<HotelOffer> findByAgencyIdAndDeletedAtIsNullOrderByCreatedAtDesc(Long agencyId);
 
-    List<HotelOffer> findByStatusOrderByCreatedAtDesc(HotelOfferStatus status);
+    List<HotelOffer> findByAgencyIdAndPropertyIdAndDeletedAtIsNullOrderByCreatedAtDesc(Long agencyId, Long propertyId);
+
+    Optional<HotelOffer> findByIdAndAgencyIdAndDeletedAtIsNull(Long id, Long agencyId);
+
+    List<HotelOffer> findByStatusAndDeletedAtIsNullOrderByCreatedAtDesc(HotelOfferStatus status);
+
+    Optional<HotelOffer> findByIdAndDeletedAtIsNull(Long id);
 }

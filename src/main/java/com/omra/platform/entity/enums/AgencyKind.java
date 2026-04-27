@@ -10,4 +10,6 @@ public enum AgencyKind {
     MARKETPLACE,
     /** Hotel operator: own hotel listings and promotional offers (pricing per person, room, or group). */
     HOTEL,
+    /** Transport carrier: fleet (buses, cars) and rental offers (per day, hour, or trip). */
+    TRANSPORT,
 }

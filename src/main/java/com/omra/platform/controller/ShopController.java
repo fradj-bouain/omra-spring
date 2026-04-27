@@ -48,7 +48,7 @@ public class ShopController {
     }
 
     @DeleteMapping("/products/{id}")
-    @Operation(summary = "Delete article")
+    @Operation(summary = "Masquer un article (suppression logique — conserve l’historique commandes)")
     public ResponseEntity<Void> deleteProduct(@PathVariable Long id) {
         shopService.deleteProduct(id);
         return ResponseEntity.noContent().build();

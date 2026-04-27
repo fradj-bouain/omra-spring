@@ -1,18 +1,19 @@
 package com.omra.platform.entity;
 
+import com.omra.platform.entity.enums.TransportVehicleType;
 import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.Instant;
 
 @Entity
-@Table(name = "hotel_properties")
+@Table(name = "transport_vehicles")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class HotelProperty {
+public class TransportVehicle {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -21,23 +22,30 @@ public class HotelProperty {
     @Column(name = "agency_id", nullable = false)
     private Long agencyId;
 
-    @Column(nullable = false, length = 200)
-    private String name;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "vehicle_type", nullable = false, length = 16)
+    private TransportVehicleType vehicleType;
 
-    @Column(columnDefinition = "TEXT")
-    private String description;
+    @Column(name = "seat_count", nullable = false)
+    private Integer seatCount;
+
+    @Column(length = 64)
+    private String plate;
 
     @Column(length = 120)
-    private String city;
+    private String brand;
 
-    @Column(length = 2)
-    private String country;
+    @Column(name = "driver_name", length = 140)
+    private String driverName;
+
+    @Column(name = "driver_phone", length = 60)
+    private String driverPhone;
+
+    @Column(name = "driver_email", length = 255)
+    private String driverEmail;
 
     @Column(columnDefinition = "TEXT")
     private String address;
-
-    @Column(name = "image_url", length = 1024)
-    private String imageUrl;
 
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
@@ -45,7 +53,6 @@ public class HotelProperty {
     @Column(name = "updated_at")
     private Instant updatedAt;
 
-    /** Suppression logique — pas de DELETE physique (références / FK). */
     @Column(name = "deleted_at")
     private Instant deletedAt;
 

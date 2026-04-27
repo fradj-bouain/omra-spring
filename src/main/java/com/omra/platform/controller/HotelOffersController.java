@@ -3,6 +3,7 @@ package com.omra.platform.controller;
 import com.omra.platform.dto.HotelOfferDto;
 import com.omra.platform.dto.HotelReservationCreateDto;
 import com.omra.platform.dto.HotelReservationDto;
+import com.omra.platform.dto.HotelReservationTravelViewDto;
 import com.omra.platform.service.HotelReservationService;
 import com.omra.platform.service.HotelOfferBrowseService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -31,6 +32,12 @@ public class HotelOffersController {
     @Operation(summary = "List active hotel offers (for TRAVEL agencies)")
     public ResponseEntity<List<HotelOfferDto>> listActiveOffers() {
         return ResponseEntity.ok(hotelOfferBrowseService.listActiveOffersForTravelAgencies());
+    }
+
+    @GetMapping("/my-reservations")
+    @Operation(summary = "List this travel agency’s hotel-offer reservation requests and their status")
+    public ResponseEntity<List<HotelReservationTravelViewDto>> listMyReservations() {
+        return ResponseEntity.ok(hotelReservationService.listReservationsForTravelAgency());
     }
 
     @PostMapping("/{offerId}/reservations")

@@ -3,21 +3,27 @@ package com.omra.platform.service;
 import com.omra.platform.dto.*;
 import com.omra.platform.entity.Agency;
 import com.omra.platform.entity.HotelOffer;
+import com.omra.platform.entity.HotelOfferReservation;
 import com.omra.platform.entity.HotelProperty;
 import com.omra.platform.entity.enums.AgencyKind;
 import com.omra.platform.entity.enums.HotelOfferStatus;
+import com.omra.platform.entity.enums.HotelReservationStatus;
 import com.omra.platform.exception.BadRequestException;
 import com.omra.platform.exception.ForbiddenException;
 import com.omra.platform.exception.ResourceNotFoundException;
 import com.omra.platform.repository.AgencyRepository;
 import com.omra.platform.repository.HotelOfferRepository;
+import com.omra.platform.repository.HotelOfferReservationRepository;
 import com.omra.platform.repository.HotelPropertyRepository;
 import com.omra.platform.util.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -27,11 +33,52 @@ public class HotelOperatorService {
     private final AgencyRepository agencyRepository;
     private final HotelPropertyRepository propertyRepository;
     private final HotelOfferRepository offerRepository;
+    private final HotelOfferReservationRepository reservationRepository;
+
+    @Transactional(readOnly = true)
+    public HotelDashboardDto getDashboard() {
+        Long agencyId = requireHotelAgencyId();
+        long propertiesCount = propertyRepository.countByAgencyIdAndDeletedAtIsNull(agencyId);
+        long offersCount = offerRepository.countByAgencyIdAndDeletedAtIsNull(agencyId);
+        long activeOffersCount = offerRepository.countByAgencyIdAndStatusAndDeletedAtIsNull(agencyId, HotelOfferStatus.ACTIVE);
+        long reservationsPending = reservationRepository.countByHotelAgencyIdAndStatus(agencyId, HotelReservationStatus.PENDING);
+        long reservationsConfirmed = reservationRepository.countByHotelAgencyIdAndStatus(agencyId, HotelReservationStatus.CONFIRMED);
+        long reservationsRejected = reservationRepository.countByHotelAgencyIdAndStatus(agencyId, HotelReservationStatus.REJECTED);
+        long reservationsTotal = reservationRepository.countByHotelAgencyId(agencyId);
+        List<HotelOfferReservation> recent = reservationRepository.findTop5ByHotelAgencyIdOrderByCreatedAtDesc(agencyId);
+        Map<Long, String> travelAgencyNames = new HashMap<>();
+        for (HotelOfferReservation r : recent) {
+            Long tid = r.getTravelAgencyId();
+            if (tid != null && !travelAgencyNames.containsKey(tid)) {
+                agencyRepository.findById(tid).ifPresent(a -> travelAgencyNames.put(tid, a.getName()));
+            }
+        }
+        List<HotelDashboardRecentReservationDto> recentDtos = recent.stream()
+                .map(r -> HotelDashboardRecentReservationDto.builder()
+                        .id(r.getId())
+                        .contactName(r.getContactName())
+                        .status(r.getStatus() != null ? r.getStatus().name() : null)
+                        .createdAt(r.getCreatedAt())
+                        .units(r.getUnits())
+                        .travelAgencyName(travelAgencyNames.get(r.getTravelAgencyId()))
+                        .build())
+                .collect(Collectors.toList());
+        return HotelDashboardDto.builder()
+                .propertiesCount(propertiesCount)
+                .offersCount(offersCount)
+                .activeOffersCount(activeOffersCount)
+                .reservationsPending(reservationsPending)
+                .reservationsConfirmed(reservationsConfirmed)
+                .reservationsRejected(reservationsRejected)
+                .reservationsTotal(reservationsTotal)
+                .recentReservations(recentDtos)
+                .build();
+    }
 
     @Transactional(readOnly = true)
     public List<HotelPropertyDto> listProperties() {
         Long agencyId = requireHotelAgencyId();
-        return propertyRepository.findByAgencyIdOrderByNameAsc(agencyId).stream()
+        return propertyRepository.findByAgencyIdAndDeletedAtIsNullOrderByNameAsc(agencyId).stream()
                 .map(this::toPropertyDto)
                 .collect(Collectors.toList());
     }
@@ -57,7 +104,7 @@ public class HotelOperatorService {
     @Transactional
     public HotelPropertyDto updateProperty(Long id, HotelPropertyWriteDto dto) {
         Long agencyId = requireHotelAgencyId();
-        HotelProperty p = propertyRepository.findByIdAndAgencyId(id, agencyId)
+        HotelProperty p = propertyRepository.findByIdAndAgencyIdAndDeletedAtIsNull(id, agencyId)
                 .orElseThrow(() -> new ResourceNotFoundException("HotelProperty", id));
         if (dto.getName() != null && !dto.getName().isBlank()) {
             p.setName(dto.getName().trim());
@@ -83,9 +130,15 @@ public class HotelOperatorService {
     @Transactional
     public void deleteProperty(Long id) {
         Long agencyId = requireHotelAgencyId();
-        HotelProperty p = propertyRepository.findByIdAndAgencyId(id, agencyId)
+        HotelProperty p = propertyRepository.findByIdAndAgencyIdAndDeletedAtIsNull(id, agencyId)
                 .orElseThrow(() -> new ResourceNotFoundException("HotelProperty", id));
-        propertyRepository.delete(p);
+        Instant now = Instant.now();
+        for (HotelOffer o : offerRepository.findByAgencyIdAndPropertyIdAndDeletedAtIsNullOrderByCreatedAtDesc(agencyId, id)) {
+            o.setDeletedAt(now);
+            offerRepository.save(o);
+        }
+        p.setDeletedAt(now);
+        propertyRepository.save(p);
     }
 
     @Transactional(readOnly = true)
@@ -93,11 +146,11 @@ public class HotelOperatorService {
         Long agencyId = requireHotelAgencyId();
         if (propertyId != null) {
             assertPropertyInAgency(propertyId, agencyId);
-            return offerRepository.findByAgencyIdAndPropertyIdOrderByCreatedAtDesc(agencyId, propertyId).stream()
+            return offerRepository.findByAgencyIdAndPropertyIdAndDeletedAtIsNullOrderByCreatedAtDesc(agencyId, propertyId).stream()
                     .map(this::toOfferDto)
                     .collect(Collectors.toList());
         }
-        return offerRepository.findByAgencyIdOrderByCreatedAtDesc(agencyId).stream()
+        return offerRepository.findByAgencyIdAndDeletedAtIsNullOrderByCreatedAtDesc(agencyId).stream()
                 .map(this::toOfferDto)
                 .collect(Collectors.toList());
     }
@@ -131,7 +184,7 @@ public class HotelOperatorService {
     @Transactional
     public HotelOfferDto updateOffer(Long id, HotelOfferWriteDto dto) {
         Long agencyId = requireHotelAgencyId();
-        HotelOffer o = offerRepository.findByIdAndAgencyId(id, agencyId)
+        HotelOffer o = offerRepository.findByIdAndAgencyIdAndDeletedAtIsNull(id, agencyId)
                 .orElseThrow(() -> new ResourceNotFoundException("HotelOffer", id));
         validateOfferWrite(dto);
         if (!o.getPropertyId().equals(dto.getPropertyId())) {
@@ -156,7 +209,7 @@ public class HotelOperatorService {
     @Transactional
     public HotelOfferDto setOfferStatus(Long offerId, boolean active) {
         Long agencyId = requireHotelAgencyId();
-        HotelOffer o = offerRepository.findByIdAndAgencyId(offerId, agencyId)
+        HotelOffer o = offerRepository.findByIdAndAgencyIdAndDeletedAtIsNull(offerId, agencyId)
                 .orElseThrow(() -> new ResourceNotFoundException("HotelOffer", offerId));
         o.setStatus(active ? HotelOfferStatus.ACTIVE : HotelOfferStatus.DISABLED);
         return toOfferDto(offerRepository.save(o));
@@ -165,13 +218,14 @@ public class HotelOperatorService {
     @Transactional
     public void deleteOffer(Long id) {
         Long agencyId = requireHotelAgencyId();
-        HotelOffer o = offerRepository.findByIdAndAgencyId(id, agencyId)
+        HotelOffer o = offerRepository.findByIdAndAgencyIdAndDeletedAtIsNull(id, agencyId)
                 .orElseThrow(() -> new ResourceNotFoundException("HotelOffer", id));
-        offerRepository.delete(o);
+        o.setDeletedAt(Instant.now());
+        offerRepository.save(o);
     }
 
     private void assertPropertyInAgency(Long propertyId, Long agencyId) {
-        propertyRepository.findByIdAndAgencyId(propertyId, agencyId)
+        propertyRepository.findByIdAndAgencyIdAndDeletedAtIsNull(propertyId, agencyId)
                 .orElseThrow(() -> new ResourceNotFoundException("HotelProperty", propertyId));
     }
 
