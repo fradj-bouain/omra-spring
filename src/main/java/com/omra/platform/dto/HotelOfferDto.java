@@ -17,6 +17,15 @@ public class HotelOfferDto {
 
     private Long id;
     private Long propertyId;
+    /** HOTEL agency that owns the offer (for browse API). */
+    private Long hotelAgencyId;
+    private String hotelAgencyName;
+    /** Property snapshot fields for browse UI. */
+    private String propertyName;
+    private String propertyCity;
+    private String propertyCountry;
+    private String propertyAddress;
+    private String propertyImageUrl;
     private String title;
     private String description;
     private String imageUrl;

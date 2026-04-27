@@ -1,7 +1,9 @@
 package com.omra.platform.controller;
 
 import com.omra.platform.dto.*;
+import com.omra.platform.entity.enums.HotelReservationStatus;
 import com.omra.platform.service.HotelOperatorService;
+import com.omra.platform.service.HotelReservationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +19,7 @@ import java.util.List;
 public class HotelOperatorController {
 
     private final HotelOperatorService hotelOperatorService;
+    private final HotelReservationService hotelReservationService;
 
     @GetMapping("/properties")
     @Operation(summary = "List hotel properties for the tenant")
@@ -75,5 +78,19 @@ public class HotelOperatorController {
     public ResponseEntity<Void> deleteOffer(@PathVariable Long id) {
         hotelOperatorService.deleteOffer(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/reservations")
+    @Operation(summary = "List incoming reservations for hotel offers (HOTEL agencies)")
+    public ResponseEntity<List<HotelReservationDto>> listReservations() {
+        return ResponseEntity.ok(hotelReservationService.listIncomingReservations());
+    }
+
+    @PostMapping("/reservations/{id}/status")
+    @Operation(summary = "Update reservation status (HOTEL agencies)")
+    public ResponseEntity<HotelReservationDto> setReservationStatus(
+            @PathVariable Long id,
+            @RequestParam HotelReservationStatus status) {
+        return ResponseEntity.ok(hotelReservationService.setReservationStatus(id, status));
     }
 }
