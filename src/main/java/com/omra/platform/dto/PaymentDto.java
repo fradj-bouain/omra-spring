@@ -19,7 +19,11 @@ public class PaymentDto {
     private Long id;
     private Long agencyId;
     private Long pilgrimId;
+    /** Nom affichable du voyageur (liste / détail). */
+    private String pilgrimName;
     private Long groupId;
+    /** Nom du groupe (liste / détail). */
+    private String groupName;
     private BigDecimal amount;
     private String currency;
     private PaymentMethod paymentMethod;

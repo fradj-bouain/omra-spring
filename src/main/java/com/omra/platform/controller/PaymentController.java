@@ -48,6 +48,13 @@ public class PaymentController {
         return ResponseEntity.ok(paymentService.update(id, dto));
     }
 
+    @PostMapping("/{paymentId}/due-dates/{dueId}/pay")
+    @Operation(summary = "Mark one installment as paid; when all installments are paid, payment becomes PAID.")
+    public ResponseEntity<PaymentDto> markInstallmentPaid(
+            @PathVariable Long paymentId, @PathVariable Long dueId) {
+        return ResponseEntity.ok(paymentService.markInstallmentPaid(paymentId, dueId));
+    }
+
     @DeleteMapping("/{id}")
     @Operation(summary = "Delete payment (soft delete)")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
